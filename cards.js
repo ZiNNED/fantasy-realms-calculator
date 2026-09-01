@@ -44,6 +44,7 @@
 //     // per: 'manyOf' – count how many distinct suits have at least min cards, award points per qualifying suit
 //     // per: 'runs' – find consecutive sequences of unique base point values (+1 steps). tiers: [{min, points}] — score each run independently, sum across runs
 //     // per: 'baseBest' – add the highest base points (card.points) among matching cards
+//     // per: 'baseSum' – add the sum of all base points (card.points) among matching cards
 //     // of.other: true – exclude the card itself from the count
 //     // of.all: true  – every card in hand must match (boolean check)
 //     // of.oddPoints: true – computed: card.points % 2 !== 0
