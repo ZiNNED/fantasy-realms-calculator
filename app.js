@@ -408,6 +408,12 @@ function scoreCards(cards) {
                     if (matching.length > 0) {
                         rulePoints = Math.max(...matching.map(c => c.points || 0));
                     }
+                } else if (rule.per === 'baseSum') {
+                    let matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
+                    if (resolvedFilter.other) {
+                        matching = matching.filter(c => c.id !== card.id);
+                    }
+                    rulePoints = matching.reduce((sum, c) => sum + (c.points || 0), 0);
                 }
 
                 // ----- Condition check (if the rule has a condition, validate it) -----
