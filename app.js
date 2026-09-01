@@ -211,11 +211,12 @@ function matchesFilter(card, filter) {
     if (filter.suit && card.suit === filter.suit) return true;
     if (filter.suits && Array.isArray(filter.suits) && filter.suits.includes(card.suit)) return true;
     if (filter.id && card.id === filter.id) return true;
+    if (filter.ids && Array.isArray(filter.ids) && filter.ids.includes(card.id)) return true;
     if (filter.subtypes) {
         if (!card.subtypes) return false;
         return filter.subtypes.some(s => (card.subtypes || []).includes(s));
     }
-    if (!filter.oddPoints && !filter.suit && !filter.suits && !filter.id && !filter.subtypes) return true;
+    if (!filter.oddPoints && !filter.suit && !filter.suits && !filter.id && !filter.ids && !filter.subtypes) return true;
     return false;
 }
 

@@ -39,6 +39,7 @@
 //     // of.suit: '...' – match by suit name (single)
 //     // of.suits: ['...', '...'] – match ANY of these suits (array, OR logic)
 //     // of.id: '...'   – match a specific card by id
+//     // of.ids: ['...', '...'] – match ANY of these card IDs (array, OR logic)
 //     // effects.type: 'clears' – cards of this suit have their negative scoring ignored
 //     // effects.type: 'clearsBest' – single card among matching suits with highest negative penalty is cleared
 //     // effects.type: 'blanks' – cards of these suits are blanked (no name, no points, no bonuses/penalties/effects)
