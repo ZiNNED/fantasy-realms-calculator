@@ -27,6 +27,7 @@
 //     ]
 //     // per: 'each'  – count matching cards, multiply by points
 //     // per: 'flat'  – boolean check, award points once
+//     // per: 'flatIfNone' – award points when NO matching cards exist (count === 0)
 //     // per: 'tiered' – find highest tier with count >= min, award those points
 //     // per: 'threshold' – if count >= min, award points
 //     // per: 'baseBest' – add the highest base points (card.points) among matching cards

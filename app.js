@@ -322,6 +322,9 @@ function calculateScore(playerIdx) {
                     } else {
                         if (count > 0) rulePoints = rule.points;
                     }
+                } else if (rule.per === 'flatIfNone') {
+                    // Award points when NO matching cards exist
+                    if (count === 0) rulePoints = rule.points;
                 } else if (rule.per === 'each') {
                     rulePoints = Math.max(0, count) * rule.points;
                 } else if (rule.per === 'threshold') {
