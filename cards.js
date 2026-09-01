@@ -26,6 +26,8 @@
 //     // of.suits: ['...', '...'] – match ANY of these suits (array, OR logic)
 //     // of.id: '...'   – match a specific card by id
 //     // effects.type: 'clears' – cards of this suit have their negative scoring ignored
+//     // effects.type: 'clearsBest' – single card among matching suits with highest negative penalty is cleared
+//     // effects.of.suits: ['...', '...'] – candidate suits for clearsBest
 // }
 
 const CARDS = [

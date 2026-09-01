@@ -225,17 +225,48 @@ function calculateScore(playerIdx) {
     const cardScores = {};
 
     const clearedSuits = new Set();
+    const clearedCards = new Set();
     hand.forEach(card => {
         (card.effects || []).forEach(effect => {
             if (effect.type === 'clears' && effect.suit) {
                 clearedSuits.add(effect.suit);
+            }
+            if (effect.type === 'clearsBest' && effect.of && effect.of.suits) {
+                // Find the single card among matching suits with the highest negative penalty
+                let bestCard = null;
+                let bestPenalty = 0;
+                hand.forEach(candidate => {
+                    if (!effect.of.suits.includes(candidate.suit)) return;
+                    let totalNeg = 0;
+                    (candidate.scoring || []).forEach(rule => {
+                        if (rule.points >= 0) return;
+                        const resolvedFilter = { ...rule.of };
+                        if (resolvedFilter.suit === 'same') resolvedFilter.suit = candidate.suit;
+                        let count = hand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                        if (resolvedFilter.other && matchesFilter(candidate, resolvedFilter)) count--;
+                        if (rule.per === 'each') {
+                            totalNeg += Math.max(0, count) * Math.abs(rule.points);
+                        } else if (rule.per === 'flat' || rule.per === 'threshold') {
+                            if (count >= (rule.min || 1)) totalNeg += Math.abs(rule.points);
+                        } else if (rule.per === 'tiered' && rule.tiers) {
+                            for (const tier of rule.tiers) {
+                                if (count >= tier.min) { totalNeg += Math.abs(tier.points); break; }
+                            }
+                        }
+                    });
+                    if (totalNeg > bestPenalty) {
+                        bestPenalty = totalNeg;
+                        bestCard = candidate;
+                    }
+                });
+                if (bestCard) clearedCards.add(bestCard.id);
             }
         });
     });
 
     hand.forEach(card => {
         let cardScore = card.points || 0;
-        const isCleared = clearedSuits.has(card.suit);
+        const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
 
         if (card.scoring && card.scoring.length > 0) {
             const rulePointsList = [];
