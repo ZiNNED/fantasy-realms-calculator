@@ -22,6 +22,8 @@
 //             { type: 'clearsTarget', suit: 'army', on: { suit: 'flood' } },
 //             // Suit change: auto-optimises changing one other card's suit (brute-force)
 //             { type: 'changeSuit' },
+//             // Extra suits: card also counts as these suits for matching purposes
+//             { type: 'extraSuits', suits: ['flame', 'weather'] },
 //         ]
 //     },
 //     penalty: [
@@ -32,6 +34,9 @@
 //         // allExcept mode: blanks everything EXCEPT the listed suits and IDs
 //         { type: 'blanks', mode: 'allExcept', of: { suits: ['flame', 'wizard', 'weather', 'weapon', 'artifact'], ids: ['mountain', 'greatFlood', 'island', 'unicorn', 'dragon'] } },
 //         { type: 'blanks', of: { suits: ['land'], except: ['mountain'] } },
+//         { type: 'selfBlank', of: { suit: 'flood' }, when: 'present' },
+//         // partialBlank: when blanked, card stays active but base points become 0 (suits retained)
+//         { type: 'partialBlank' },
 //     ]
 //     // penalty type: 'selfBlank' – card blanks itself unless matching cards are present
 //     //   when: 'present' – blanks itself when matching cards ARE present (inverse)

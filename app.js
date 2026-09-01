@@ -206,10 +206,19 @@ function updateActivePlayerName() {
 }
 
 // ===== Scoring Engine =====
+// ===== Global extra suits map (set per scoreCards call) =====
+let _extraSuitsMap = null;
+
 function matchesFilter(card, filter) {
     if (filter.oddPoints && card.points % 2 !== 0) return true;
-    if (filter.suit && card.suit === filter.suit) return true;
-    if (filter.suits && Array.isArray(filter.suits) && filter.suits.includes(card.suit)) return true;
+    if (filter.suit) {
+        if (card.suit === filter.suit) return true;
+        if (_extraSuitsMap && _extraSuitsMap[card.id] && _extraSuitsMap[card.id].includes(filter.suit)) return true;
+    }
+    if (filter.suits && Array.isArray(filter.suits)) {
+        if (filter.suits.includes(card.suit)) return true;
+        if (_extraSuitsMap && _extraSuitsMap[card.id] && filter.suits.some(s => _extraSuitsMap[card.id].includes(s))) return true;
+    }
     if (filter.id && card.id === filter.id) return true;
     if (filter.ids && Array.isArray(filter.ids) && filter.ids.includes(card.id)) return true;
     if (filter.subtypes) {
@@ -223,6 +232,8 @@ function matchesFilter(card, filter) {
 function scoreCards(cards) {
     // Take an array of card objects, compute full scoring (blanks → clears → bonus → penalty)
     //
+    _extraSuitsMap = null;
+
     // ===== Phase 1: Compute blanked cards =====
     const blanked = new Set();
     cards.forEach(card => {
@@ -260,6 +271,16 @@ function scoreCards(cards) {
             }
         });
     });
+
+    // ----- Partial blank cards: when blanked, keep suits active but zero their base points -----
+    const zeroedPoints = new Set();
+    for (const id of blanked) {
+        const card = cards.find(c => c.id === id);
+        if (card && (card.penalty || []).some(r => r.type === 'partialBlank')) {
+            blanked.delete(id);
+            zeroedPoints.add(id);
+        }
+    }
 
     // ===== Phase 2: Active hand = non-blanked cards only =====
     const activeHand = cards.filter(c => !blanked.has(c.id));
@@ -318,6 +339,10 @@ function scoreCards(cards) {
                 });
                 if (bestCard) clearedCards.add(bestCard.id);
             }
+            if (rule.type === 'extraSuits' && rule.suits) {
+                if (!_extraSuitsMap) _extraSuitsMap = {};
+                _extraSuitsMap[card.id] = [...new Set([...(_extraSuitsMap[card.id] || []), ...rule.suits])];
+            }
         });
     });
 
@@ -325,8 +350,12 @@ function scoreCards(cards) {
     let total = 0;
     const cardScores = {};
 
+    // Build effective base points (zeroedPoints cards → 0 for baseBest/baseSum/runs)
+    const effectivePoints = {};
+    activeHand.forEach(c => { effectivePoints[c.id] = zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
+
     activeHand.forEach(card => {
-        let cardScore = card.points || 0;
+        let cardScore = effectivePoints[card.id];
         const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
 
         // ----- Bonuses -----
@@ -368,11 +397,22 @@ function scoreCards(cards) {
                         if (!resolvedFilter.ids.every(id => handIds.includes(id))) allMet = false;
                     }
                     if (resolvedFilter.suits && Array.isArray(resolvedFilter.suits)) {
-                        const handSuits = activeHand.map(c => c.suit);
-                        if (!resolvedFilter.suits.every(s => handSuits.includes(s))) allMet = false;
+                        const handSuits = new Set();
+                        activeHand.forEach(c => {
+                            handSuits.add(c.suit);
+                            if (_extraSuitsMap && _extraSuitsMap[c.id]) {
+                                _extraSuitsMap[c.id].forEach(s => handSuits.add(s));
+                            }
+                        });
+                        if (!resolvedFilter.suits.every(s => handSuits.has(s))) allMet = false;
                     }
                     if (resolvedFilter.suit) {
-                        if (!activeHand.some(c => c.suit === resolvedFilter.suit)) allMet = false;
+                        const hasSuit = activeHand.some(c => {
+                            if (c.suit === resolvedFilter.suit) return true;
+                            if (_extraSuitsMap && _extraSuitsMap[c.id] && _extraSuitsMap[c.id].includes(resolvedFilter.suit)) return true;
+                            return false;
+                        });
+                        if (!hasSuit) allMet = false;
                     }
                     if (allMet) rulePoints = rule.points;
                 } else if (rule.per === 'flatIfNone') {
@@ -389,11 +429,20 @@ function scoreCards(cards) {
                     }
                 } else if (rule.per === 'manyOf') {
                     const suitCounts = {};
-                    activeHand.forEach(c => { suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1; });
+                    activeHand.forEach(c => {
+                        // Count by native AND extra suits
+                        const counted = new Set();
+                        if (!counted.has(c.suit)) { suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1; counted.add(c.suit); }
+                        if (_extraSuitsMap && _extraSuitsMap[c.id]) {
+                            _extraSuitsMap[c.id].forEach(s => {
+                                if (!counted.has(s)) { suitCounts[s] = (suitCounts[s] || 0) + 1; counted.add(s); }
+                            });
+                        }
+                    });
                     const min = rule.min || 1;
                     rulePoints = Object.values(suitCounts).filter(cnt => cnt >= min).length * (rule.points || 0);
                 } else if (rule.per === 'runs') {
-                    const uniquePoints = [...new Set(activeHand.map(c => c.points || 0))].sort((a, b) => a - b);
+                    const uniquePoints = [...new Set(activeHand.map(c => effectivePoints[c.id]))].sort((a, b) => a - b);
                     const tiers = (rule.tiers || []).sort((a, b) => b.min - a.min);
                     let runLen = 0;
                     for (let i = 0; i < uniquePoints.length; i++) {
@@ -406,14 +455,14 @@ function scoreCards(cards) {
                 } else if (rule.per === 'baseBest') {
                     const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
                     if (matching.length > 0) {
-                        rulePoints = Math.max(...matching.map(c => c.points || 0));
+                        rulePoints = Math.max(...matching.map(c => effectivePoints[c.id]));
                     }
                 } else if (rule.per === 'baseSum') {
                     let matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
                     if (resolvedFilter.other) {
                         matching = matching.filter(c => c.id !== card.id);
                     }
-                    rulePoints = matching.reduce((sum, c) => sum + (c.points || 0), 0);
+                    rulePoints = matching.reduce((sum, c) => sum + effectivePoints[c.id], 0);
                 }
 
                 // ----- Condition check (if the rule has a condition, validate it) -----
