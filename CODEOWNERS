@@ -1,0 +1,6 @@
+# Code Owners
+# This file defines who is required to review changes to this repository.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @ZiNNED

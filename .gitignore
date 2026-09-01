@@ -1,0 +1,5 @@
+.wrangler/
+.env
+.DS_Store
+thumbs.db
+serve.py
