@@ -1,4 +1,5 @@
 /* ===== Fantasy Realms Calculator — Styles ===== */
+/* Inspired by Forest Shuffle Calculator UI pattern */
 
 :root {
     --bg-body: #f5f1eb;
@@ -13,6 +14,7 @@
     --accent-light: #ede9fe;
     --green: #10b981;
     --green-bg: #d1fae5;
+    --green-border: #a7f3d0;
     --red: #ef4444;
     --red-bg: #fee2e2;
     --radius: 8px;
@@ -261,233 +263,6 @@ html, body {
 }
 .settings-new-game:hover { opacity: 0.9; }
 
-/* ===== Main Layout ===== */
-.app-layout {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - var(--nav-height));
-}
-
-/* ===== Hand Section ===== */
-.hand-section {
-    flex-shrink: 0;
-    padding: 12px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-body);
-}
-
-.hand-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.hand-count {
-    font-weight: 400;
-    font-size: 0.8rem;
-}
-
-.hand-score {
-    margin-left: auto;
-    font-size: 0.9rem;
-    color: var(--accent);
-}
-
-.hand-cards {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding: 4px 0 8px;
-    min-height: 90px;
-}
-
-.hand-empty {
-    width: 100%;
-    text-align: center;
-    padding: 25px 0;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-}
-
-.hand-card {
-    flex-shrink: 0;
-    width: 100px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 8px;
-    text-align: center;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    box-shadow: var(--shadow);
-}
-.hand-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-}
-
-.hand-card-name {
-    font-size: 0.8rem;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--text-primary);
-}
-
-.hand-card-suit {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-}
-
-.hand-card-points {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--accent);
-}
-
-/* ===== Score Display ===== */
-.score-total {
-    font-size: 1rem;
-    margin-bottom: 4px;
-}
-.score-total strong {
-    font-size: 1.3rem;
-    color: var(--accent);
-}
-
-.score-breakdown {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-.score-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-.score-card-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.score-value {
-    font-weight: 600;
-    flex-shrink: 0;
-}
-
-/* ===== Card Grid Section ===== */
-.card-grid-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 12px;
-}
-
-.card-grid-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    flex-shrink: 0;
-}
-
-.card-search {
-    margin-left: auto;
-    width: 180px;
-    padding: 6px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg-card);
-    color: var(--text-primary);
-    font-size: 0.8rem;
-    font-family: inherit;
-    outline: none;
-    box-shadow: var(--shadow);
-    transition: border-color 0.15s;
-}
-.card-search::placeholder {
-    color: var(--text-muted);
-    opacity: 0.6;
-}
-.card-search:focus {
-    border-color: var(--accent);
-}
-
-.card-grid {
-    flex: 1;
-    overflow-y: auto;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 8px;
-    align-content: start;
-    padding: 4px 0;
-}
-
-.card-grid-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 10px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.15s;
-    position: relative;
-    box-shadow: var(--shadow);
-}
-.card-grid-item:hover {
-    border-color: var(--accent);
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.08);
-}
-.card-grid-item.taken {
-    cursor: default;
-    opacity: 0.4;
-    pointer-events: none;
-}
-.card-grid-item.taken:hover {
-    border-color: var(--border);
-    transform: none;
-    box-shadow: var(--shadow);
-}
-.card-grid-item.in-hand {
-    border-color: var(--green);
-    background: var(--green-bg);
-}
-.card-grid-item.in-hand:hover {
-    border-color: var(--green);
-    transform: translateY(-1px);
-}
-
-.card-grid-name {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.card-grid-check {
-    position: absolute;
-    top: 4px;
-    right: 6px;
-    font-size: 0.8rem;
-    color: var(--green);
-}
-
 /* ===== Version ===== */
 .settings-version {
     text-align: center;
@@ -497,10 +272,256 @@ html, body {
     opacity: 0.6;
 }
 
+/* ===== Leaderboard ===== */
+.leader-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+.leader-row.active {
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: 600;
+}
+.leader-row .leader-color {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.leader-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.leader-points {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* ===== Scrollable Content ===== */
+.scroll-content {
+    height: calc(100vh - var(--nav-height));
+    overflow-y: auto;
+    padding: 12px 16px;
+    padding-bottom: 60px;
+}
+
+/* ===== Suit Details (zone-level) ===== */
+.suit-details {
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.suit-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    list-style: none;
+    transition: background 0.1s;
+}
+.suit-summary::-webkit-details-marker { display: none; }
+.suit-summary:hover { background: var(--hover-bg); }
+
+.suit-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.suit-label {
+    flex: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.suit-cards-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin: 0 14px 6px;
+}
+
+/* ===== Card Row ===== */
+.card-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    transition: background 0.1s;
+    cursor: pointer;
+    min-height: 44px;
+}
+.card-row:hover { background: var(--hover-bg); }
+.card-row.selected {
+    background: var(--green-bg);
+    border-color: var(--green-border);
+}
+.card-row.taken {
+    opacity: 0.35;
+    cursor: default;
+    pointer-events: none;
+}
+.card-row.taken:hover { background: transparent; }
+.card-row.disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.card-row.disabled:hover { background: transparent; }
+
+.card-indicator {
+    width: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+.card-row.selected .card-indicator {
+    color: var(--green);
+    font-weight: 700;
+}
+
+.card-name {
+    flex: 1;
+    font-size: 0.88rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card-score {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 28px;
+    text-align: right;
+}
+
+/* ===== Summary ===== */
+.summary {
+    margin: 16px 0;
+}
+.summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.summary-details {
+    display: block;
+}
+
+.summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    gap: 8px;
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.summary-value {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.total-row {
+    font-weight: 700;
+    cursor: pointer;
+    list-style: none;
+    transition: background 0.1s;
+}
+.total-row::-webkit-details-marker { display: none; }
+.total-row:hover { background: var(--hover-bg); }
+
+.total-row .summary-label {
+    font-size: 1rem;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.total-row .summary-value {
+    font-size: 1.3rem;
+    color: var(--accent);
+}
+
+.suit-breakdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    gap: 8px;
+}
+.suit-breakdown-row:last-child {
+    border-bottom: none;
+}
+
+.suit-breakdown-icon {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.suit-breakdown-label {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.suit-breakdown-value {
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 480px) {
-    .settings-panel { max-width: 90vw; }
-    .card-grid { grid-template-columns: repeat(2, 1fr); }
-    .hand-card { width: 85px; }
-    .card-search { width: 120px; }
+    .scroll-content {
+        padding: 8px 10px;
+    }
+    .card-row {
+        padding: 10px 12px;
+    }
+    .card-name {
+        font-size: 0.85rem;
+    }
 }

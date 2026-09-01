@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fantasy Realms Calculator</title>
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
     <link rel="icon" type="image/png" href="assets/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
     <link rel="manifest" href="manifest.json">
@@ -12,24 +12,25 @@
 </head>
 <body>
 
-<!-- Top Navigation -->
-<div class="top-nav">
+<!-- Navigation -->
+<nav class="top-nav">
     <div class="nav-left">
-        <button class="nav-btn" id="menuBtn" onclick="openSettings()">☰</button>
+        <button class="nav-btn" onclick="openSettings()">&#9776;</button>
         <span class="nav-title">Fantasy Realms</span>
     </div>
     <div class="nav-right">
         <a class="bb-link" href="https://boardbuddy.games">🎲 BoardBuddy</a>
         <span class="current-player-name" id="currentPlayerName">Player 1</span>
     </div>
-</div>
+</nav>
 
 <!-- Settings Panel -->
 <div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
 <div class="settings-panel" id="settingsPanel">
     <div class="settings-header">
-        <button class="settings-close" onclick="closeSettings()">✕</button>
+        <button class="settings-close" onclick="closeSettings()">&#215;</button>
     </div>
+
     <div class="settings-group">
         <div class="settings-group-title" data-i18n="players">Players</div>
         <div class="settings-players" id="settingsPlayerList"></div>
@@ -38,44 +39,50 @@
             <span data-i18n="addPlayer">Add Player</span>
         </button>
     </div>
+
+    <div class="settings-group">
+        <div class="settings-group-title" data-i18n="leaderboard">Leaderboard</div>
+        <div id="leaderboardList"></div>
+    </div>
+
     <div class="settings-group">
         <div class="settings-group-title" data-i18n="language">Language</div>
         <div class="settings-lang-row">
             <button class="lang-btn active" id="langEn" onclick="setLanguage('en')">🇬🇧 English</button>
         </div>
     </div>
+
     <div class="settings-group" style="margin-top: 24px;">
         <button class="settings-new-game" onclick="newGame()" data-i18n="newGame">New Game</button>
     </div>
-    <div class="settings-version">v0.5</div>
+
+    <div class="settings-version">v0.6</div>
 </div>
 
-<!-- Main Content -->
-<div class="app-layout">
-    <!-- Hand + Score (top section) -->
-    <div class="hand-section">
-        <div class="hand-header">
-            <span data-i18n="hand">Hand</span>
-            <span class="hand-count">(<span id="handCount">0</span>/7)</span>
-            <span class="hand-score" id="scoreDisplay"></span>
-        </div>
-        <div class="hand-cards" id="handDisplay">
-            <div class="hand-empty" data-i18n="clickToAdd">Tap a card to add it to your hand</div>
+<!-- Scrollable content -->
+<div class="scroll-content" id="scrollContent">
+
+    <!-- Card sections rendered by JS -->
+    <div id="cardSections"></div>
+
+    <!-- Summary -->
+    <div class="summary" id="summary">
+        <div class="summary-card">
+            <details class="summary-details" id="summaryDetails">
+                <summary class="summary-row total-row" id="summaryToggle">
+                    <span class="summary-label" data-i18n="total">Total</span>
+                    <span class="summary-value" id="totalPoints">0</span>
+                </summary>
+                <div id="suitBreakdown"></div>
+            </details>
         </div>
     </div>
 
-    <!-- Card grid (bottom section) -->
-    <div class="card-grid-section">
-        <div class="card-grid-header">
-            <span data-i18n="cards">Cards</span>
-            <input class="card-search" id="cardSearch" type="text" placeholder="Search cards..." oninput="onCardSearch()">
-        </div>
-        <div class="card-grid" id="cardGrid"></div>
-    </div>
+    <div style="height: 40px;"></div>
 </div>
 
-<script src="cards.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="cards.js?v=7"></script>
+<script src="app.js?v=7"></script>
 
 <script>
     if ('serviceWorker' in navigator) {

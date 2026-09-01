@@ -1,22 +1,38 @@
+// ============================================
 // Fantasy Realms Calculator — App Logic
+// ============================================
 
-// ===== State =====
-let state = {
-    currentPlayer: 0,
-    players: [{ name: 'Player 1', hand: [] }],
+// ===== Suit Definitions =====
+const SUIT_ORDER = ['wizard', 'leader', 'beast', 'land', 'weather', 'flood', 'flame'];
+const SUIT_LABELS = {
+    wizard: 'Wizards',
+    leader: 'Leaders',
+    beast: 'Beasts',
+    land: 'Lands',
+    weather: 'Weather',
+    flood: 'Floods',
+    flame: 'Flames',
+};
+const SUIT_COLORS = {
+    wizard: '#7c3aed',
+    leader: '#e67e22',
+    beast: '#10b981',
+    land: '#22a6b3',
+    weather: '#3498db',
+    flood: '#2980b9',
+    flame: '#e74c3c',
 };
 
 // ===== Player Colors =====
 const PLAYER_COLORS = ['#7c3aed', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
 
-// ===== i18n =====
+// ===== Localization =====
 let LANG = localStorage.getItem('fantasyRealmLang') || 'en';
 
 const I18N = {
     en: {
         total: 'Total',
         score: 'Score',
-        cards: 'Cards',
         suit: 'Suit',
         points: 'Points',
         hand: 'Hand',
@@ -29,6 +45,7 @@ const I18N = {
         newGame: 'New Game',
         players: 'Players',
         language: 'Language',
+        leaderboard: 'Leaderboard',
         search: 'Search cards...',
         taken: 'Taken',
     },
@@ -43,13 +60,13 @@ function translateUI() {
 }
 
 function setLanguage(lang) {
-    if (lang !== 'en') return; // Only English supported
+    if (lang !== 'en') return;
     LANG = lang;
     localStorage.setItem('fantasyRealmLang', lang);
     translateUI();
     updateLangButtons();
-    renderHand();
-    renderCardGrid();
+    buildCardSections();
+    updateAllScores();
 }
 
 function updateLangButtons() {
@@ -60,11 +77,21 @@ function defaultPlayerName(index) {
     return t('player') + ' ' + (index + 1);
 }
 
+// ===== State =====
+let state = {
+    currentPlayer: 0,
+    players: [{ name: defaultPlayerName(0), hand: [] }],
+};
+
 // ===== Helpers =====
+function getCard(id) {
+    return CARDS.find(c => c.id === id);
+}
+
 function isCardTaken(cardId, excludePlayerIdx) {
     return state.players.some((p, i) => {
         if (excludePlayerIdx !== undefined && i === excludePlayerIdx) return false;
-        return p.hand.some(c => c.id === cardId);
+        return p.hand.includes(cardId);
     });
 }
 
@@ -73,8 +100,8 @@ function addPlayer() {
     if (state.players.length >= 6) return;
     state.players.push({ name: defaultPlayerName(state.players.length), hand: [] });
     rebuildPlayerList();
-    renderHand();
-    renderCardGrid();
+    buildCardSections();
+    updateAllScores();
     saveSettings();
 }
 
@@ -85,8 +112,8 @@ function removePlayer(index) {
         state.currentPlayer = state.players.length - 1;
     }
     rebuildPlayerList();
-    renderHand();
-    renderCardGrid();
+    buildCardSections();
+    updateAllScores();
     saveSettings();
 }
 
@@ -94,17 +121,17 @@ function selectPlayer(index) {
     state.currentPlayer = index;
     rebuildPlayerList();
     updateActivePlayerName();
-    renderHand();
-    renderCardGrid();
+    buildCardSections();
+    updateAllScores();
 }
 
 function rebuildPlayerList() {
     const list = document.getElementById('settingsPlayerList');
     list.innerHTML = '';
     state.players.forEach((p, i) => {
+        const pIdx = i;
         const row = document.createElement('div');
         row.className = 'settings-player-row' + (i === state.currentPlayer ? ' active' : '');
-        row.dataset.player = i + 1;
 
         const color = document.createElement('span');
         color.className = 'settings-player-color';
@@ -116,7 +143,7 @@ function rebuildPlayerList() {
         nameSpan.textContent = p.name;
         nameSpan.onclick = function(e) {
             e.stopPropagation();
-            editPlayerName(i);
+            editPlayerName(pIdx);
         };
         row.appendChild(nameSpan);
 
@@ -124,14 +151,11 @@ function rebuildPlayerList() {
             const removeBtn = document.createElement('button');
             removeBtn.className = 'settings-player-remove';
             removeBtn.textContent = '✕';
-            removeBtn.onclick = function(e) {
-                e.stopPropagation();
-                removePlayer(i);
-            };
+            removeBtn.onclick = function(e) { e.stopPropagation(); removePlayer(pIdx); };
             row.appendChild(removeBtn);
         }
 
-        row.onclick = () => { selectPlayer(i); closeSettings(); };
+        row.onclick = function() { selectPlayer(pIdx); closeSettings(); };
         list.appendChild(row);
     });
     updateActivePlayerName();
@@ -162,6 +186,7 @@ function editPlayerName(idx) {
         input.remove();
         nameSpan.style.display = '';
         updateActivePlayerName();
+        saveSettings();
     }
 
     input.onblur = save;
@@ -190,13 +215,13 @@ function matchesFilter(card, filter) {
 }
 
 function calculateScore(playerIdx) {
-    const hand = state.players[playerIdx].hand;
+    const hand = state.players[playerIdx].hand.map(id => getCard(id)).filter(Boolean);
     let total = 0;
-    const breakdown = [];
+    const cardScores = {};
 
     const clearedSuits = new Set();
-    hand.forEach(c => {
-        (c.effects || []).forEach(effect => {
+    hand.forEach(card => {
+        (card.effects || []).forEach(effect => {
             if (effect.type === 'clears' && effect.suit) {
                 clearedSuits.add(effect.suit);
             }
@@ -249,139 +274,232 @@ function calculateScore(playerIdx) {
                     }
                 }
 
-                if (rulePoints !== 0) {
-                    breakdown.push({
-                        card: card.id,
-                        rule: rule,
-                        count: count,
-                        points: rulePoints,
-                    });
-                }
                 cardScore += rulePoints;
             });
         }
 
         total += cardScore;
-        breakdown.push({
-            card: card.id,
-            points: cardScore,
-            isBase: true,
+        cardScores[card.id] = cardScore;
+    });
+
+    return { total, cardScores };
+}
+
+// ===== Toggle Card Selection =====
+function toggleCard(cardId) {
+    const player = state.players[state.currentPlayer];
+    const idx = player.hand.indexOf(cardId);
+
+    if (idx !== -1) {
+        // Deselect
+        player.hand.splice(idx, 1);
+    } else {
+        // Select
+        if (player.hand.length >= 7) return;
+        if (isCardTaken(cardId)) return;
+        player.hand.push(cardId);
+    }
+
+    buildCardSections();
+    updateAllScores();
+    saveSettings();
+}
+
+// ===== Build Card Sections =====
+function buildCardSections() {
+    const container = document.getElementById('cardSections');
+    container.innerHTML = '';
+
+    // Group cards by suit
+    const bySuit = {};
+    CARDS.forEach(card => {
+        if (!bySuit[card.suit]) bySuit[card.suit] = [];
+        bySuit[card.suit].push(card);
+    });
+
+    const player = state.players[state.currentPlayer];
+    const playerHand = player ? player.hand : [];
+    const fullHand = playerHand.length >= 7;
+
+    SUIT_ORDER.forEach(suit => {
+        const cards = bySuit[suit];
+        if (!cards || cards.length === 0) return;
+
+        const suitColor = SUIT_COLORS[suit] || '#999';
+        const cardsInSuit = cards.sort((a, b) => a.name.en.localeCompare(b.name.en));
+
+        const details = document.createElement('details');
+        details.className = 'suit-details';
+        details.setAttribute('open', '');
+
+        const summary = document.createElement('summary');
+        summary.className = 'suit-summary';
+
+        const icon = document.createElement('span');
+        icon.className = 'suit-icon';
+        icon.style.background = suitColor;
+        summary.appendChild(icon);
+
+        const label = document.createElement('span');
+        label.className = 'suit-label';
+        label.textContent = SUIT_LABELS[suit] || suit.toUpperCase();
+        summary.appendChild(label);
+
+        const suitScore = document.createElement('span');
+        suitScore.className = 'suit-score';
+        suitScore.id = 'suitScore-' + suit;
+        suitScore.textContent = '0';
+        suitScore.style.cssText = 'font-size:0.95rem;font-weight:600;color:var(--text-secondary);';
+        summary.appendChild(suitScore);
+
+        details.appendChild(summary);
+
+        cardsInSuit.forEach(card => {
+            const row = document.createElement('div');
+            row.className = 'card-row';
+            row.id = 'cardRow-' + card.id;
+
+            const inHand = playerHand.includes(card.id);
+            const taken = isCardTaken(card.id);
+            const canSelect = !taken && !fullHand;
+
+            if (inHand) {
+                row.classList.add('selected');
+            } else if (taken) {
+                row.classList.add('taken');
+            } else if (fullHand) {
+                row.classList.add('disabled');
+            }
+
+            // Indicator (empty circle or check)
+            const indicator = document.createElement('span');
+            indicator.className = 'card-indicator';
+            indicator.textContent = inHand ? '✓' : '○';
+            row.appendChild(indicator);
+
+            // Card name
+            const name = document.createElement('span');
+            name.className = 'card-name';
+            name.textContent = card.name.en;
+            row.appendChild(name);
+
+            // Score display
+            const score = document.createElement('span');
+            score.className = 'card-score';
+            score.id = 'pts-' + card.id;
+            score.textContent = '0';
+            row.appendChild(score);
+
+            row.onclick = function() { toggleCard(card.id); };
+            details.appendChild(row);
         });
+
+        container.appendChild(details);
     });
-
-    return { total, breakdown };
 }
 
-// ===== Card Management (shared pool) =====
-function addCardToHand(cardId) {
-    const player = state.players[state.currentPlayer];
-    if (player.hand.length >= 7) return;
-    if (isCardTaken(cardId)) return; // Already in someone's hand
-    const card = CARDS.find(c => c.id === cardId);
-    if (!card) return;
-    player.hand.push({ ...card });
-    renderHand();
-    renderCardGrid();
-    saveSettings();
-}
-
-function removeCardFromHand(cardId) {
-    const player = state.players[state.currentPlayer];
-    const idx = player.hand.findIndex(c => c.id === cardId);
-    if (idx === -1) return;
-    player.hand.splice(idx, 1);
-    renderHand();
-    renderCardGrid();
-    saveSettings();
-}
-
-// ===== Rendering =====
-function renderHand() {
-    const player = state.players[state.currentPlayer];
-    const container = document.getElementById('handDisplay');
-    const scoreContainer = document.getElementById('scoreDisplay');
-    const countEl = document.getElementById('handCount');
-
-    if (countEl) countEl.textContent = player ? player.hand.length : 0;
-
-    if (!player || player.hand.length === 0) {
-        container.innerHTML = `<div class="hand-empty">${t('clickToAdd')}</div>`;
-        if (scoreContainer) scoreContainer.innerHTML = '';
-        return;
-    }
-
-    container.innerHTML = player.hand.map(card => `
-        <div class="hand-card" onclick="removeCardFromHand('${card.id}')" title="${t('tapToRemove')}">
-            <div class="hand-card-name">${card.name.en}</div>
-            <div class="hand-card-suit">${card.suit}</div>
-            <div class="hand-card-points">${card.points}</div>
-        </div>
-    `).join('');
-
+// ===== Update Scores =====
+function updateAllScores() {
     const result = calculateScore(state.currentPlayer);
-    if (scoreContainer) {
-        scoreContainer.innerHTML = `
-            <div class="score-total">${t('total')}: <strong>${result.total}</strong></div>
-            <div class="score-breakdown">
-                ${result.breakdown.filter(b => b.isBase).map(b => {
-                    const card = CARDS.find(c => c.id === b.card);
-                    return `<div class="score-row">
-                        <span class="score-card-name">${card ? card.name.en : b.card}</span>
-                        <span class="score-value">${b.points}</span>
-                    </div>`;
-                }).join('')}
-            </div>
-        `;
-    }
-}
+    const suitScores = {};
 
-function renderCardGrid() {
-    const player = state.players[state.currentPlayer];
-    const container = document.getElementById('cardGrid');
-    const search = (document.getElementById('cardSearch')?.value || '').toLowerCase();
+    // Initialize all suits to 0
+    SUIT_ORDER.forEach(suit => { suitScores[suit] = 0; });
 
-    let filtered = CARDS;
-    if (search) {
-        filtered = CARDS.filter(c =>
-            c.name.en.toLowerCase().includes(search) ||
-            c.suit.toLowerCase().includes(search) ||
-            c.id.toLowerCase().includes(search)
-        );
-    }
+    // Update per-card displays and accumulate suit totals
+    CARDS.forEach(card => {
+        const pts = result.cardScores[card.id] || 0;
+        const ptsEl = document.getElementById('pts-' + card.id);
+        if (ptsEl) ptsEl.textContent = pts;
 
-    const playerHandIds = player ? new Set(player.hand.map(c => c.id)) : new Set();
-    const full = player && player.hand.length >= 7;
-    const otherPlayerHandIds = new Set();
-    state.players.forEach((p, i) => {
-        if (i !== state.currentPlayer) {
-            p.hand.forEach(c => otherPlayerHandIds.add(c.id));
+        // Accumulate suit score (only if card is in hand)
+        const player = state.players[state.currentPlayer];
+        if (player && player.hand.includes(card.id)) {
+            suitScores[card.suit] = (suitScores[card.suit] || 0) + pts;
         }
     });
 
-    container.innerHTML = filtered.map(card => {
-        const inHand = playerHandIds.has(card.id);
-        const taken = otherPlayerHandIds.has(card.id);
-        let cls = 'card-grid-item';
-        if (inHand) cls += ' in-hand';
-        else if (taken) cls += ' taken';
+    // Update suit-level score displays
+    SUIT_ORDER.forEach(suit => {
+        const el = document.getElementById('suitScore-' + suit);
+        if (el) el.textContent = suitScores[suit] || 0;
+    });
 
-        let onclick = '';
-        if (inHand) {
-            onclick = `removeCardFromHand('${card.id}')`;
-        } else if (!taken && !full) {
-            onclick = `addCardToHand('${card.id}')`;
-        }
+    // Update summary
+    document.getElementById('totalPoints').textContent = result.total;
 
-        const check = inHand ? '<div class="card-grid-check">✓</div>' : '';
-        const takenLabel = taken ? '' : ''; // Visual opacity handles it
+    // Build suit breakdown in summary
+    const breakdownContainer = document.getElementById('suitBreakdown');
+    breakdownContainer.innerHTML = '';
+    SUIT_ORDER.forEach(suit => {
+        const score = suitScores[suit] || 0;
+        const hasCards = state.players[state.currentPlayer].hand.some(cid => {
+            const c = getCard(cid);
+            return c && c.suit === suit;
+        });
+        if (!hasCards) return;
 
-        return `
-            <div class="${cls}" onclick="${onclick}">
-                <div class="card-grid-name">${card.name.en}</div>
-                ${check}
-            </div>
-        `;
-    }).join('');
+        const row = document.createElement('div');
+        row.className = 'suit-breakdown-row';
+
+        const icon = document.createElement('span');
+        icon.className = 'suit-breakdown-icon';
+        icon.style.background = SUIT_COLORS[suit] || '#999';
+        row.appendChild(icon);
+
+        const label = document.createElement('span');
+        label.className = 'suit-breakdown-label';
+        label.textContent = SUIT_LABELS[suit] || suit;
+        row.appendChild(label);
+
+        const val = document.createElement('span');
+        val.className = 'suit-breakdown-value';
+        val.textContent = score;
+        row.appendChild(val);
+
+        breakdownContainer.appendChild(row);
+    });
+}
+
+// ===== Leaderboard =====
+function computePlayerTotal(playerIdx) {
+    const savedPlayer = state.currentPlayer;
+    state.currentPlayer = playerIdx;
+    const result = calculateScore(playerIdx);
+    state.currentPlayer = savedPlayer;
+    return result.total;
+}
+
+function renderLeaderboard() {
+    const container = document.getElementById('leaderboardList');
+    if (!container) return;
+    container.innerHTML = '';
+    // Sort by total descending
+    const totals = state.players.map((p, i) => ({ idx: i, total: computePlayerTotal(i) }));
+    totals.sort((a, b) => b.total - a.total);
+
+    totals.forEach(entry => {
+        const p = state.players[entry.idx];
+        const row = document.createElement('div');
+        row.className = 'leader-row' + (entry.idx === state.currentPlayer ? ' active' : '');
+
+        const color = document.createElement('span');
+        color.className = 'leader-color';
+        color.style.background = PLAYER_COLORS[entry.idx % PLAYER_COLORS.length];
+        row.appendChild(color);
+
+        const name = document.createElement('span');
+        name.className = 'leader-name';
+        name.textContent = p.name;
+        row.appendChild(name);
+
+        const pts = document.createElement('span');
+        pts.className = 'leader-points';
+        pts.textContent = entry.total;
+        row.appendChild(pts);
+
+        container.appendChild(row);
+    });
 }
 
 // ===== Settings Persistence =====
@@ -391,7 +509,7 @@ function saveSettings() {
             lang: LANG,
             players: state.players.map(p => ({
                 name: p.name,
-                hand: p.hand.map(c => ({ id: c.id })),
+                hand: p.hand.map(id => ({ id: id })),
             })),
         };
         localStorage.setItem('fantasyRealmSettings', JSON.stringify(data));
@@ -401,6 +519,7 @@ function saveSettings() {
 // ===== Settings Panel =====
 function openSettings() {
     rebuildPlayerList();
+    renderLeaderboard();
     document.getElementById('settingsOverlay').classList.add('open');
     document.getElementById('settingsPanel').classList.add('open');
 }
@@ -415,14 +534,9 @@ function newGame() {
     if (!confirm(t('confirmNewGame'))) return;
     state.players.forEach(p => { p.hand = []; });
     closeSettings();
-    renderHand();
-    renderCardGrid();
+    buildCardSections();
+    updateAllScores();
     saveSettings();
-}
-
-// ===== Card Search =====
-function onCardSearch() {
-    renderCardGrid();
 }
 
 // ===== Init =====
@@ -430,25 +544,25 @@ window.addEventListener('DOMContentLoaded', function() {
     try {
         const saved = JSON.parse(localStorage.getItem('fantasyRealmSettings'));
         if (saved) {
-            if (saved.lang) {
-                LANG = 'en'; // Only English supported
-                localStorage.setItem('fantasyRealmLang', 'en');
-            }
+            LANG = 'en';
+            localStorage.setItem('fantasyRealmLang', 'en');
             if (saved.players) {
                 state.players = saved.players.map(p => ({
                     name: p.name,
-                    hand: p.hand ? p.hand.map(h => {
-                        const card = CARDS.find(c => c.id === h.id);
-                        return card ? { ...card } : null;
-                    }).filter(Boolean) : [],
+                    hand: p.hand ? p.hand.map(h => h.id).filter(Boolean) : [],
                 }));
             }
         }
     } catch (e) { /* ignore */ }
 
+    // Ensure each player has at least one entry
+    if (state.players.length === 0) {
+        state.players = [{ name: defaultPlayerName(0), hand: [] }];
+    }
+
     translateUI();
     updateLangButtons();
     rebuildPlayerList();
-    renderHand();
-    renderCardGrid();
+    buildCardSections();
+    updateAllScores();
 });
