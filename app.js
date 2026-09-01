@@ -406,6 +406,14 @@ function scoreCards(cards) {
                     }
                 }
 
+                // ----- Condition check (if the rule has a condition, validate it) -----
+                if (rulePoints > 0 && rule.condition) {
+                    if (rule.condition === 'allDifferentSuits') {
+                        const suits = activeHand.map(c => c.suit);
+                        if (new Set(suits).size !== suits.length) rulePoints = 0;
+                    }
+                }
+
                 bonusPointsList.push(rulePoints);
             });
 
