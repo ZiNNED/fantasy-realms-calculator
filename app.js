@@ -328,6 +328,13 @@ function calculateScore(playerIdx) {
                     } else {
                         if (count > 0) rulePoints = rule.points;
                     }
+                } else if (rule.per === 'flatAllIds') {
+                    // Award points when ALL specified card IDs are present at least once
+                    if (resolvedFilter.ids && Array.isArray(resolvedFilter.ids)) {
+                        const handIds = activeHand.map(c => c.id);
+                        const allPresent = resolvedFilter.ids.every(id => handIds.includes(id));
+                        if (allPresent) rulePoints = rule.points;
+                    }
                 } else if (rule.per === 'flatIfNone') {
                     // Award points when NO matching cards exist
                     if (count === 0) rulePoints = rule.points;
