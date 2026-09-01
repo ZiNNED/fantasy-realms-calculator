@@ -27,7 +27,7 @@ const SUIT_COLORS = {
 const PLAYER_COLORS = ['#7c3aed', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
 
 // ===== Localization =====
-let LANG = localStorage.getItem('fantasyRealmLang') || 'en';
+let LANG = 'en';
 
 const I18N = {
     en: {
@@ -62,7 +62,6 @@ function translateUI() {
 function setLanguage(lang) {
     if (lang !== 'en') return;
     LANG = lang;
-    localStorage.setItem('fantasyRealmLang', lang);
     translateUI();
     updateLangButtons();
     buildCardSections();
@@ -102,7 +101,6 @@ function addPlayer() {
     rebuildPlayerList();
     buildCardSections();
     updateAllScores();
-    saveSettings();
 }
 
 function removePlayer(index) {
@@ -114,7 +112,6 @@ function removePlayer(index) {
     rebuildPlayerList();
     buildCardSections();
     updateAllScores();
-    saveSettings();
 }
 
 function selectPlayer(index) {
@@ -186,7 +183,6 @@ function editPlayerName(idx) {
         input.remove();
         nameSpan.style.display = '';
         updateActivePlayerName();
-        saveSettings();
     }
 
     input.onblur = save;
@@ -310,7 +306,6 @@ function toggleCard(cardId) {
 
     buildCardSections();
     updateAllScores();
-    saveSettings();
 }
 
 // ===== Build Card Sections =====
@@ -510,20 +505,6 @@ function renderLeaderboard() {
     });
 }
 
-// ===== Settings Persistence =====
-function saveSettings() {
-    try {
-        const data = {
-            lang: LANG,
-            players: state.players.map(p => ({
-                name: p.name,
-                hand: p.hand.map(id => ({ id: id })),
-            })),
-        };
-        localStorage.setItem('fantasyRealmSettings', JSON.stringify(data));
-    } catch (e) { /* ignore */ }
-}
-
 // ===== Settings Panel =====
 function openSettings() {
     rebuildPlayerList();
@@ -544,29 +525,15 @@ function newGame() {
     closeSettings();
     buildCardSections();
     updateAllScores();
-    saveSettings();
 }
 
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', function() {
+    // Clean up any persisted state from previous versions
     try {
-        const saved = JSON.parse(localStorage.getItem('fantasyRealmSettings'));
-        if (saved) {
-            LANG = 'en';
-            localStorage.setItem('fantasyRealmLang', 'en');
-            if (saved.players) {
-                state.players = saved.players.map(p => ({
-                    name: p.name,
-                    hand: p.hand ? p.hand.map(h => h.id).filter(Boolean) : [],
-                }));
-            }
-        }
+        localStorage.removeItem('fantasyRealmSettings');
+        localStorage.removeItem('fantasyRealmLang');
     } catch (e) { /* ignore */ }
-
-    // Ensure each player has at least one entry
-    if (state.players.length === 0) {
-        state.players = [{ name: defaultPlayerName(0), hand: [] }];
-    }
 
     translateUI();
     updateLangButtons();
