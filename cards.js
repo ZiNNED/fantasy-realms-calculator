@@ -630,4 +630,70 @@ const CARDS = [
         ] },
         penalty: [],
     },
+
+    // ===== Leaders =====
+    {
+        id: 'king',
+        name: { en: 'King' },
+        set: 'base',
+        suit: 'leader',
+        points: 8,
+        bonus: {
+            mode: 'best',
+            rules: [
+                { points: 5, per: 'each', of: { suit: 'army' } },
+                { points: 20, per: 'each', of: { suit: 'army' }, condition: { type: 'hasCard', id: 'queen' } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'queen',
+        name: { en: 'Queen' },
+        set: 'base',
+        suit: 'leader',
+        points: 6,
+        bonus: { mode: 'best', rules: [
+            { points: 5, per: 'each', of: { suit: 'army' } },
+            { points: 20, per: 'each', of: { suit: 'army' }, condition: { type: 'hasCard', id: 'king' } },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'princess',
+        name: { en: 'Princess' },
+        set: 'base',
+        suit: 'leader',
+        points: 2,
+        bonus: { mode: 'sum', rules: [
+            { points: 8, per: 'each', of: { suit: 'army' } },
+            { points: 8, per: 'each', of: { suit: 'wizard' } },
+            { points: 8, per: 'each', of: { suit: 'leader', other: true } },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'warlord',
+        name: { en: 'Warlord' },
+        set: 'base',
+        suit: 'leader',
+        points: 4,
+        bonus: { mode: 'sum', rules: [
+            { per: 'baseSum', of: { suit: 'army' } },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'empress',
+        name: { en: 'Empress' },
+        set: 'base',
+        suit: 'leader',
+        points: 4,
+        bonus: { mode: 'sum', rules: [
+            { points: 10, per: 'each', of: { suit: 'army' } },
+        ] },
+        penalty: [
+            { points: -5, per: 'each', of: { suit: 'leader', other: true } },
+        ],
+    },
 ];
