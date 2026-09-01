@@ -562,4 +562,60 @@ const CARDS = [
             { type: 'selfBlank', of: { suit: 'weather' }, when: 'present' },
         ],
     },
+
+    // ===== Artifacts =====
+    {
+        id: 'gemOfOrder',
+        name: { en: 'Gem of Order' },
+        set: 'base',
+        suit: 'artifact',
+        points: 5,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { per: 'runs', tiers: [
+                    { min: 3, points: 10 },
+                    { min: 4, points: 30 },
+                    { min: 5, points: 60 },
+                    { min: 6, points: 100 },
+                    { min: 7, points: 150 },
+                ] },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'shieldOfKeth',
+        name: { en: 'Shield of Keth' },
+        set: 'base',
+        suit: 'artifact',
+        points: 4,
+        bonus: { mode: 'best', rules: [
+            { points: 15, per: 'flat', of: { suit: 'leader' } },
+            { points: 40, per: 'flatAllIds', of: { suits: ['leader'], ids: ['swordOfKeth'] } },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'bookOfChanges',
+        name: { en: 'Book of Changes' },
+        set: 'base',
+        suit: 'artifact',
+        points: 3,
+        bonus: { mode: 'sum', rules: [
+            { type: 'changeSuit' },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'worldTree',
+        name: { en: 'World Tree' },
+        set: 'base',
+        suit: 'artifact',
+        points: 2,
+        bonus: { mode: 'sum', rules: [
+            { points: 50, per: 'flat', condition: 'allDifferentSuits' },
+        ] },
+        penalty: [],
+    },
 ];
