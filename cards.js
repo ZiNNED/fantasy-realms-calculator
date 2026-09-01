@@ -2,7 +2,7 @@
 // ===== Card Data Structure =====
 // {
 //     id: 'warlockLord',
-//     name: { en: 'Warlock Lord', nl: 'Tovenaar Heer' },
+//     name: { en: 'Warlock Lord' },
 //     set: 'base',
 //     suit: 'wizard',
 //     points: 25,
@@ -31,7 +31,7 @@ const CARDS = [
     // ===== Wizards =====
     {
         id: 'warlockLord',
-        name: { en: 'Warlock Lord', nl: 'Tovenaar Heer' },
+        name: { en: 'Warlock Lord' },
         set: 'base',
         suit: 'wizard',
         points: 25,
@@ -43,7 +43,7 @@ const CARDS = [
     },
     {
         id: 'necromancer',
-        name: { en: 'Necromancer', nl: 'Necromancer' },
+        name: { en: 'Necromancer' },
         set: 'base',
         suit: 'wizard',
         points: 3,
@@ -52,7 +52,7 @@ const CARDS = [
     },
     {
         id: 'jester',
-        name: { en: 'Jester', nl: 'Nar' },
+        name: { en: 'Jester' },
         set: 'promo',
         suit: 'wizard',
         points: 3,
@@ -65,7 +65,7 @@ const CARDS = [
     },
     {
         id: 'beastmaster',
-        name: { en: 'Beastmaster', nl: 'Beestenmeester' },
+        name: { en: 'Beastmaster' },
         set: 'base',
         suit: 'wizard',
         points: 9,
@@ -78,7 +78,7 @@ const CARDS = [
     },
     {
         id: 'enchantress',
-        name: { en: 'Enchantress', nl: 'Enchantress' },
+        name: { en: 'Enchantress' },
         set: 'base',
         suit: 'wizard',
         points: 5,
@@ -92,7 +92,7 @@ const CARDS = [
     },
     {
         id: 'collector',
-        name: { en: 'Collector', nl: 'Collector' },
+        name: { en: 'Collector' },
         set: 'base',
         suit: 'wizard',
         points: 7,
