@@ -491,4 +491,75 @@ const CARDS = [
             } },
         ],
     },
+    {
+        id: 'elvenLongbow',
+        name: { en: 'Elven Longbow' },
+        set: 'base',
+        suit: 'weapon',
+        points: 3,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 30, per: 'flat', of: { ids: ['elvenArchers', 'warlord', 'beastmaster'] } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'magicWand',
+        name: { en: 'Magic Wand' },
+        set: 'base',
+        suit: 'weapon',
+        points: 1,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 25, per: 'flat', of: { suit: 'wizard' } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'warship',
+        name: { en: 'Warship' },
+        set: 'base',
+        suit: 'weapon',
+        points: 23,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { type: 'clearsTarget', suit: 'army', on: { suit: 'flood' } },
+            ],
+        },
+        penalty: [
+            { type: 'selfBlank', of: { suit: 'flood' } },
+        ],
+    },
+    {
+        id: 'swordOfKeth',
+        name: { en: 'Sword of Keth' },
+        set: 'base',
+        suit: 'weapon',
+        points: 7,
+        bonus: {
+            mode: 'best',
+            rules: [
+                { points: 10, per: 'flat', of: { suit: 'leader' } },
+                { points: 40, per: 'flatAllIds', of: { suits: ['leader'], ids: ['shieldOfKeth'] } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'warDirigible',
+        name: { en: 'War Dirigible' },
+        set: 'base',
+        suit: 'weapon',
+        points: 35,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { type: 'selfBlank', of: { suit: 'army' } },
+            { type: 'selfBlank', of: { suit: 'weather' }, when: 'present' },
+        ],
+    },
 ];
