@@ -18,6 +18,8 @@
 //             { type: 'clearsBest', of: { suits: ['flood', 'flame'] } },
 //             // Target clear: removes a suit from ALL penalty rules (no penalty mentions this suit)
 //             { type: 'clearsTarget', suit: 'army' },
+//             // Scoped target clear: removes a suit from penalty rules on cards of a specific suit only
+//             { type: 'clearsTarget', suit: 'army', on: { suit: 'flood' } },
 //         ]
 //     },
 //     penalty: [

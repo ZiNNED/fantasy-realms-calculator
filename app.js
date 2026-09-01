@@ -265,7 +265,10 @@ function calculateScore(playerIdx) {
     // ===== Phase 3: Process clear effects from bonus rules =====
     const clearedSuits = new Set();
     const clearedCards = new Set();
-    const clearedTargets = new Set();
+    // clearedTargets: Map<cardSuit | '*', Set<targetSuit>>
+    // '*' = global (applies to all cards), otherwise scoped to that suit
+    const clearedTargets = new Map();
+    clearedTargets.set('*', new Set());
     activeHand.forEach(card => {
         const bonusRules = (card.bonus && card.bonus.rules) || [];
         bonusRules.forEach(rule => {
@@ -273,7 +276,16 @@ function calculateScore(playerIdx) {
                 clearedSuits.add(rule.suit);
             }
             if (rule.type === 'clearsTarget' && rule.suit) {
-                clearedTargets.add(rule.suit);
+                if (rule.on && rule.on.suit) {
+                    // Scoped: only applies to cards of this suit
+                    if (!clearedTargets.has(rule.on.suit)) {
+                        clearedTargets.set(rule.on.suit, new Set());
+                    }
+                    clearedTargets.get(rule.on.suit).add(rule.suit);
+                } else {
+                    // Global: applies to all cards
+                    clearedTargets.get('*').add(rule.suit);
+                }
             }
             if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
                 let bestCard = null;
@@ -284,7 +296,7 @@ function calculateScore(playerIdx) {
                     (candidate.penalty || []).forEach(pr => {
                         if (pr.type) return; // non-numerical (blanks already processed)
                         if (pr.points >= 0) return;
-                        if (penaltyTargetsCleared(pr, clearedTargets)) return;
+                        if (penaltyTargetsCleared(pr, clearedTargets, candidate.suit)) return;
                         const resolvedFilter = { ...pr.of };
                         if (resolvedFilter.suit === 'same') resolvedFilter.suit = candidate.suit;
                         let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
@@ -398,7 +410,7 @@ function calculateScore(playerIdx) {
         if (card.penalty && !isCleared) {
             card.penalty.forEach(rule => {
                 if (rule.type) return; // non-numerical (blanks already processed)
-                if (penaltyTargetsCleared(rule, clearedTargets)) return; // suit cleared from all penalties
+                if (penaltyTargetsCleared(rule, clearedTargets, card.suit)) return; // suit cleared from all penalties
 
                 const resolvedFilter = { ...rule.of };
                 if (resolvedFilter.suit === 'same') {
@@ -437,12 +449,15 @@ function handCapacity(player) {
     return (player.hand.includes('necromancer') ? 8 : 7);
 }
 
-function penaltyTargetsCleared(rule, clearedTargets) {
+function penaltyTargetsCleared(rule, clearedTargets, cardSuit) {
     // Check if this penalty rule targets a suit that's been cleared
-    if (clearedTargets.size === 0) return false;
-    if (rule.of && rule.of.suit && clearedTargets.has(rule.of.suit)) return true;
-    if (rule.of && rule.of.suits && rule.of.suits.some(s => clearedTargets.has(s))) return true;
-    return false;
+    const targets = [];
+    if (rule.of && rule.of.suit) targets.push(rule.of.suit);
+    if (rule.of && rule.of.suits) targets.push(...rule.of.suits);
+    if (targets.length === 0) return false;
+    const globalSet = clearedTargets.get('*') || new Set();
+    const scopedSet = clearedTargets.get(cardSuit) || new Set();
+    return targets.some(t => globalSet.has(t) || scopedSet.has(t));
 }
 
 // ===== Toggle Card Selection =====
