@@ -384,6 +384,10 @@ function calculateScore(playerIdx) {
     return { total, cardScores };
 }
 
+function handCapacity(player) {
+    return (player.hand.includes('necromancer') ? 8 : 7);
+}
+
 // ===== Toggle Card Selection =====
 function toggleCard(cardId) {
     const player = state.players[state.currentPlayer];
@@ -394,7 +398,8 @@ function toggleCard(cardId) {
         player.hand.splice(idx, 1);
     } else {
         // Select
-        if (player.hand.length >= 7) return;
+        const cap = handCapacity(player);
+        if (player.hand.length >= cap) return;
         if (isCardTaken(cardId)) return;
         player.hand.push(cardId);
     }
@@ -417,7 +422,7 @@ function buildCardSections() {
 
     const player = state.players[state.currentPlayer];
     const playerHand = player ? player.hand : [];
-    const fullHand = playerHand.length >= 7;
+    const fullHand = playerHand.length >= handCapacity(player);
 
     SUIT_ORDER.forEach(suit => {
         const cards = bySuit[suit];
