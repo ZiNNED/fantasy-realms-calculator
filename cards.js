@@ -16,6 +16,8 @@
 //             // Clear effects: nullifies penalties on certain cards
 //             { type: 'clears', suit: 'beast' },
 //             { type: 'clearsBest', of: { suits: ['flood', 'flame'] } },
+//             // Target clear: removes a suit from ALL penalty rules (no penalty mentions this suit)
+//             { type: 'clearsTarget', suit: 'army' },
 //         ]
 //     },
 //     penalty: [

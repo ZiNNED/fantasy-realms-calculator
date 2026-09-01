@@ -243,11 +243,15 @@ function calculateScore(playerIdx) {
     // ===== Phase 3: Process clear effects from bonus rules =====
     const clearedSuits = new Set();
     const clearedCards = new Set();
+    const clearedTargets = new Set();
     activeHand.forEach(card => {
         const bonusRules = (card.bonus && card.bonus.rules) || [];
         bonusRules.forEach(rule => {
             if (rule.type === 'clears' && rule.suit) {
                 clearedSuits.add(rule.suit);
+            }
+            if (rule.type === 'clearsTarget' && rule.suit) {
+                clearedTargets.add(rule.suit);
             }
             if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
                 let bestCard = null;
@@ -258,6 +262,7 @@ function calculateScore(playerIdx) {
                     (candidate.penalty || []).forEach(pr => {
                         if (pr.type) return; // non-numerical (blanks already processed)
                         if (pr.points >= 0) return;
+                        if (penaltyTargetsCleared(pr, clearedTargets)) return;
                         const resolvedFilter = { ...pr.of };
                         if (resolvedFilter.suit === 'same') resolvedFilter.suit = candidate.suit;
                         let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
@@ -356,6 +361,7 @@ function calculateScore(playerIdx) {
         if (card.penalty && !isCleared) {
             card.penalty.forEach(rule => {
                 if (rule.type) return; // non-numerical (blanks already processed)
+                if (penaltyTargetsCleared(rule, clearedTargets)) return; // suit cleared from all penalties
 
                 const resolvedFilter = { ...rule.of };
                 if (resolvedFilter.suit === 'same') {
@@ -369,6 +375,9 @@ function calculateScore(playerIdx) {
                     cardScore += Math.max(0, count) * rule.points;
                 } else if (rule.per === 'flat' || rule.per === 'threshold') {
                     if (count >= (rule.min || 1)) cardScore += rule.points;
+                } else if (rule.per === 'flatIfNone') {
+                    // Apply penalty when NO matching cards exist
+                    if (count === 0) cardScore += rule.points;
                 } else if (rule.per === 'tiered' && rule.tiers) {
                     for (const tier of rule.tiers) {
                         if (count >= tier.min) { cardScore += tier.points; break; }
@@ -389,6 +398,14 @@ function calculateScore(playerIdx) {
 
 function handCapacity(player) {
     return (player.hand.includes('necromancer') ? 8 : 7);
+}
+
+function penaltyTargetsCleared(rule, clearedTargets) {
+    // Check if this penalty rule targets a suit that's been cleared
+    if (clearedTargets.size === 0) return false;
+    if (rule.of && rule.of.suit && clearedTargets.has(rule.of.suit)) return true;
+    if (rule.of && rule.of.suits && rule.of.suits.some(s => clearedTargets.has(s))) return true;
+    return false;
 }
 
 // ===== Toggle Card Selection =====
