@@ -131,4 +131,73 @@ const CARDS = [
         },
         penalty: [],
     },
+
+    // ===== Floods =====
+    {
+        id: 'fountainOfLife',
+        name: { en: 'Fountain of Life' },
+        set: 'base',
+        suit: 'flood',
+        points: 1,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { per: 'baseBest', of: { suits: ['flood', 'flame', 'land', 'weather', 'weapon'] } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'waterElemental',
+        name: { en: 'Water Elemental' },
+        set: 'base',
+        suit: 'flood',
+        points: 4,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 15, per: 'each', of: { suit: 'flood', other: true } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'swamp',
+        name: { en: 'Swamp' },
+        set: 'base',
+        suit: 'flood',
+        points: 18,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { points: -3, per: 'each', of: { suit: 'army' } },
+            { points: -3, per: 'each', of: { suit: 'flame' } },
+        ],
+    },
+    {
+        id: 'island',
+        name: { en: 'Island' },
+        set: 'base',
+        suit: 'flood',
+        points: 14,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { type: 'clearsBest', of: { suits: ['flood', 'flame'] } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'greatFlood',
+        name: { en: 'Great Flood' },
+        set: 'base',
+        suit: 'flood',
+        points: 32,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { type: 'blanks', of: { suits: ['army'] } },
+            { type: 'blanks', of: { suits: ['land'], except: ['mountain'] } },
+            { type: 'blanks', of: { suits: ['flame'], except: ['lightning'] } },
+        ],
+    },
 ];
