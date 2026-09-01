@@ -6,19 +6,30 @@
 //     set: 'base',
 //     suit: 'wizard',
 //     points: 25,
-//     scoring: [
+//     bonus: {
+//         mode: 'sum' | 'best',     // 'sum' (default) — all rules add; 'best' — only highest rule counts
+//         rules: [
+//             // Numerical bonus: positive points per matching cards
+//             { points: 9, per: 'each', of: { suit: 'beast', other: true } },
+//             { per: 'tiered', of: { suit: 'same' }, tiers: [ { min: 3, points: 10 } ] },
+//             { per: 'baseBest', of: { suits: ['flood', 'flame'] } },
+//             // Clear effects: nullifies penalties on certain cards
+//             { type: 'clears', suit: 'beast' },
+//             { type: 'clearsBest', of: { suits: ['flood', 'flame'] } },
+//         ]
+//     },
+//     penalty: [
+//         // Numerical penalty: negative points per matching cards
 //         { points: -10, per: 'each', of: { suit: 'leader', other: true } },
-//         { points: -10, per: 'each', of: { suit: 'wizard', other: true } }
-//     ],
-//     effects: [
-//         { type: 'clears', suit: 'beast' }
+//         // Blank effects: removes all bonuses, penalties and base points from cards
+//         { type: 'blanks', of: { suits: ['army'] } },
+//         { type: 'blanks', of: { suits: ['land'], except: ['mountain'] } },
 //     ]
 //     // per: 'each'  – count matching cards, multiply by points
 //     // per: 'flat'  – boolean check, award points once
 //     // per: 'tiered' – find highest tier with count >= min, award those points
 //     // per: 'threshold' – if count >= min, award points
 //     // per: 'baseBest' – add the highest base points (card.points) among matching cards
-//     // scoringMode: 'best' – only the HIGHEST-scoring rule in scoring[] applies (mutually exclusive OR)
 //     // of.other: true – exclude the card itself from the count
 //     // of.all: true  – every card in hand must match (boolean check)
 //     // of.oddPoints: true – computed: card.points % 2 !== 0
@@ -29,7 +40,7 @@
 //     // effects.type: 'clearsBest' – single card among matching suits with highest negative penalty is cleared
 //     // effects.type: 'blanks' – cards of these suits are blanked (no name, no points, no bonuses/penalties/effects)
 //     // effects.of.suits: ['...', '...'] – candidate suits for clearsBest or blanks
-//     // effects.of.except: ['cardId', '...'] – exclude these specific card IDs from the effect (e.g. blanks except Mountain)
+//     // effects.of.except: ['cardId', '...'] – exclude these specific card IDs from the effect
 // }
 
 const CARDS = [
@@ -40,11 +51,11 @@ const CARDS = [
         set: 'base',
         suit: 'wizard',
         points: 25,
-        scoring: [
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
             { points: -10, per: 'each', of: { suit: 'leader', other: true } },
             { points: -10, per: 'each', of: { suit: 'wizard', other: true } },
         ],
-        effects: [],
     },
     {
         id: 'necromancer',
@@ -52,8 +63,8 @@ const CARDS = [
         set: 'base',
         suit: 'wizard',
         points: 3,
-        scoring: [],
-        effects: [],
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [],
     },
     {
         id: 'jester',
@@ -61,12 +72,14 @@ const CARDS = [
         set: 'promo',
         suit: 'wizard',
         points: 3,
-        scoringMode: 'best',
-        scoring: [
-            { points: 3, per: 'each', of: { oddPoints: true, other: true } },
-            { points: 47, per: 'flat', of: { oddPoints: true, all: true } },
-        ],
-        effects: [],
+        bonus: {
+            mode: 'best',
+            rules: [
+                { points: 3, per: 'each', of: { oddPoints: true, other: true } },
+                { points: 47, per: 'flat', of: { oddPoints: true, all: true } },
+            ],
+        },
+        penalty: [],
     },
     {
         id: 'beastmaster',
@@ -74,12 +87,14 @@ const CARDS = [
         set: 'base',
         suit: 'wizard',
         points: 9,
-        scoring: [
-            { points: 9, per: 'each', of: { suit: 'beast', other: true } },
-        ],
-        effects: [
-            { type: 'clears', suit: 'beast' },
-        ],
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 9, per: 'each', of: { suit: 'beast', other: true } },
+                { type: 'clears', suit: 'beast' },
+            ],
+        },
+        penalty: [],
     },
     {
         id: 'enchantress',
@@ -87,13 +102,16 @@ const CARDS = [
         set: 'base',
         suit: 'wizard',
         points: 5,
-        scoring: [
-            { points: 5, per: 'each', of: { suit: 'land', other: true } },
-            { points: 5, per: 'each', of: { suit: 'weather', other: true } },
-            { points: 5, per: 'each', of: { suit: 'flood', other: true } },
-            { points: 5, per: 'each', of: { suit: 'flame', other: true } },
-        ],
-        effects: [],
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 5, per: 'each', of: { suit: 'land', other: true } },
+                { points: 5, per: 'each', of: { suit: 'weather', other: true } },
+                { points: 5, per: 'each', of: { suit: 'flood', other: true } },
+                { points: 5, per: 'each', of: { suit: 'flame', other: true } },
+            ],
+        },
+        penalty: [],
     },
     {
         id: 'collector',
@@ -101,13 +119,16 @@ const CARDS = [
         set: 'base',
         suit: 'wizard',
         points: 7,
-        scoring: [
-            { per: 'tiered', of: { suit: 'same' }, tiers: [
-                { min: 5, points: 100 },
-                { min: 4, points: 40 },
-                { min: 3, points: 10 },
-            ]},
-        ],
-        effects: [],
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { per: 'tiered', of: { suit: 'same' }, tiers: [
+                    { min: 5, points: 100 },
+                    { min: 4, points: 40 },
+                    { min: 3, points: 10 },
+                ]},
+            ],
+        },
+        penalty: [],
     },
 ];

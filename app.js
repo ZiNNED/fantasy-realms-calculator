@@ -222,14 +222,14 @@ function matchesFilter(card, filter) {
 function calculateScore(playerIdx) {
     const hand = state.players[playerIdx].hand.map(id => getCard(id)).filter(Boolean);
 
-    // ===== Phase 1: Compute blanked cards =====
+    // ===== Phase 1: Compute blanked cards (from penalty arrays) =====
     const blanked = new Set();
     hand.forEach(card => {
-        (card.effects || []).forEach(effect => {
-            if (effect.type === 'blanks') {
+        (card.penalty || []).forEach(rule => {
+            if (rule.type === 'blanks' && rule.of && rule.of.suits) {
                 hand.forEach(candidate => {
-                    if (effect.of && effect.of.suits && effect.of.suits.includes(candidate.suit)) {
-                        if (effect.of.except && effect.of.except.includes(candidate.id)) return;
+                    if (rule.of.suits.includes(candidate.suit)) {
+                        if (rule.of.except && rule.of.except.includes(candidate.id)) return;
                         blanked.add(candidate.id);
                     }
                 });
@@ -240,32 +240,34 @@ function calculateScore(playerIdx) {
     // ===== Phase 2: Active hand = non-blanked cards only =====
     const activeHand = hand.filter(c => !blanked.has(c.id));
 
-    // ===== Phase 3: Process effects from active cards =====
+    // ===== Phase 3: Process clear effects from bonus rules =====
     const clearedSuits = new Set();
     const clearedCards = new Set();
     activeHand.forEach(card => {
-        (card.effects || []).forEach(effect => {
-            if (effect.type === 'clears' && effect.suit) {
-                clearedSuits.add(effect.suit);
+        const bonusRules = (card.bonus && card.bonus.rules) || [];
+        bonusRules.forEach(rule => {
+            if (rule.type === 'clears' && rule.suit) {
+                clearedSuits.add(rule.suit);
             }
-            if (effect.type === 'clearsBest' && effect.of && effect.of.suits) {
+            if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
                 let bestCard = null;
                 let bestPenalty = 0;
                 activeHand.forEach(candidate => {
-                    if (!effect.of.suits.includes(candidate.suit)) return;
+                    if (!rule.of.suits.includes(candidate.suit)) return;
                     let totalNeg = 0;
-                    (candidate.scoring || []).forEach(rule => {
-                        if (rule.points >= 0) return;
-                        const resolvedFilter = { ...rule.of };
+                    (candidate.penalty || []).forEach(pr => {
+                        if (pr.type) return; // non-numerical (blanks already processed)
+                        if (pr.points >= 0) return;
+                        const resolvedFilter = { ...pr.of };
                         if (resolvedFilter.suit === 'same') resolvedFilter.suit = candidate.suit;
                         let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
                         if (resolvedFilter.other && matchesFilter(candidate, resolvedFilter)) count--;
-                        if (rule.per === 'each') {
-                            totalNeg += Math.max(0, count) * Math.abs(rule.points);
-                        } else if (rule.per === 'flat' || rule.per === 'threshold') {
-                            if (count >= (rule.min || 1)) totalNeg += Math.abs(rule.points);
-                        } else if (rule.per === 'tiered' && rule.tiers) {
-                            for (const tier of rule.tiers) {
+                        if (pr.per === 'each') {
+                            totalNeg += Math.max(0, count) * Math.abs(pr.points);
+                        } else if (pr.per === 'flat' || pr.per === 'threshold') {
+                            if (count >= (pr.min || 1)) totalNeg += Math.abs(pr.points);
+                        } else if (pr.per === 'tiered' && pr.tiers) {
+                            for (const tier of pr.tiers) {
                                 if (count >= tier.min) { totalNeg += Math.abs(tier.points); break; }
                             }
                         }
@@ -288,11 +290,16 @@ function calculateScore(playerIdx) {
         let cardScore = card.points || 0;
         const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
 
-        if (card.scoring && card.scoring.length > 0) {
-            const rulePointsList = [];
+        // ----- Bonuses -----
+        const bonusObj = card.bonus || {};
+        const bonusRules = bonusObj.rules || [];
+        const bonusMode = bonusObj.mode || 'sum';
 
-            card.scoring.forEach(rule => {
-                if (isCleared && rule.points < 0) return;
+        if (bonusRules.length > 0) {
+            const bonusPointsList = [];
+
+            bonusRules.forEach(rule => {
+                if (rule.type) return; // non-numerical (clears/clearsBest already processed)
 
                 const resolvedFilter = { ...rule.of };
                 if (resolvedFilter.suit === 'same') {
@@ -318,16 +325,11 @@ function calculateScore(playerIdx) {
                 } else if (rule.per === 'each') {
                     rulePoints = Math.max(0, count) * rule.points;
                 } else if (rule.per === 'threshold') {
-                    if (count >= (rule.min || 1)) {
-                        rulePoints = rule.points;
-                    }
+                    if (count >= (rule.min || 1)) rulePoints = rule.points;
                 } else if (rule.per === 'tiered') {
                     if (rule.tiers) {
                         for (const tier of rule.tiers) {
-                            if (count >= tier.min) {
-                                rulePoints = tier.points;
-                                break;
-                            }
+                            if (count >= tier.min) { rulePoints = tier.points; break; }
                         }
                     }
                 } else if (rule.per === 'baseBest') {
@@ -337,14 +339,39 @@ function calculateScore(playerIdx) {
                     }
                 }
 
-                rulePointsList.push(rulePoints);
+                bonusPointsList.push(rulePoints);
             });
 
-            if (card.scoringMode === 'best') {
-                cardScore += Math.max(...rulePointsList);
+            if (bonusMode === 'best') {
+                cardScore += Math.max(...bonusPointsList);
             } else {
-                rulePointsList.forEach(rp => { cardScore += rp; });
+                bonusPointsList.forEach(rp => { cardScore += rp; });
             }
+        }
+
+        // ----- Penalties -----
+        if (card.penalty && !isCleared) {
+            card.penalty.forEach(rule => {
+                if (rule.type) return; // non-numerical (blanks already processed)
+
+                const resolvedFilter = { ...rule.of };
+                if (resolvedFilter.suit === 'same') {
+                    resolvedFilter.suit = card.suit;
+                }
+
+                let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+
+                if (rule.per === 'each') {
+                    cardScore += Math.max(0, count) * rule.points;
+                } else if (rule.per === 'flat' || rule.per === 'threshold') {
+                    if (count >= (rule.min || 1)) cardScore += rule.points;
+                } else if (rule.per === 'tiered' && rule.tiers) {
+                    for (const tier of rule.tiers) {
+                        if (count >= tier.min) { cardScore += tier.points; break; }
+                    }
+                }
+            });
         }
 
         total += cardScore;
