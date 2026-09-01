@@ -221,28 +221,44 @@ function matchesFilter(card, filter) {
 
 function calculateScore(playerIdx) {
     const hand = state.players[playerIdx].hand.map(id => getCard(id)).filter(Boolean);
-    let total = 0;
-    const cardScores = {};
 
+    // ===== Phase 1: Compute blanked cards =====
+    const blanked = new Set();
+    hand.forEach(card => {
+        (card.effects || []).forEach(effect => {
+            if (effect.type === 'blanks') {
+                hand.forEach(candidate => {
+                    if (effect.of && effect.of.suits && effect.of.suits.includes(candidate.suit)) {
+                        if (effect.of.except && effect.of.except.includes(candidate.id)) return;
+                        blanked.add(candidate.id);
+                    }
+                });
+            }
+        });
+    });
+
+    // ===== Phase 2: Active hand = non-blanked cards only =====
+    const activeHand = hand.filter(c => !blanked.has(c.id));
+
+    // ===== Phase 3: Process effects from active cards =====
     const clearedSuits = new Set();
     const clearedCards = new Set();
-    hand.forEach(card => {
+    activeHand.forEach(card => {
         (card.effects || []).forEach(effect => {
             if (effect.type === 'clears' && effect.suit) {
                 clearedSuits.add(effect.suit);
             }
             if (effect.type === 'clearsBest' && effect.of && effect.of.suits) {
-                // Find the single card among matching suits with the highest negative penalty
                 let bestCard = null;
                 let bestPenalty = 0;
-                hand.forEach(candidate => {
+                activeHand.forEach(candidate => {
                     if (!effect.of.suits.includes(candidate.suit)) return;
                     let totalNeg = 0;
                     (candidate.scoring || []).forEach(rule => {
                         if (rule.points >= 0) return;
                         const resolvedFilter = { ...rule.of };
                         if (resolvedFilter.suit === 'same') resolvedFilter.suit = candidate.suit;
-                        let count = hand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                        let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
                         if (resolvedFilter.other && matchesFilter(candidate, resolvedFilter)) count--;
                         if (rule.per === 'each') {
                             totalNeg += Math.max(0, count) * Math.abs(rule.points);
@@ -264,7 +280,11 @@ function calculateScore(playerIdx) {
         });
     });
 
-    hand.forEach(card => {
+    // ===== Phase 4: Score active cards =====
+    let total = 0;
+    const cardScores = {};
+
+    activeHand.forEach(card => {
         let cardScore = card.points || 0;
         const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
 
@@ -279,15 +299,15 @@ function calculateScore(playerIdx) {
                     resolvedFilter.suit = card.suit;
                 }
 
-                let count = hand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
                 if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
 
                 let rulePoints = 0;
 
                 if (rule.per === 'flat') {
                     if (resolvedFilter.all) {
-                        const allMatch = hand.every(c => matchesFilter(c, resolvedFilter));
-                        if (allMatch && (!resolvedFilter.other || hand.length > 0)) {
+                        const allMatch = activeHand.every(c => matchesFilter(c, resolvedFilter));
+                        if (allMatch && (!resolvedFilter.other || activeHand.length > 0)) {
                             rulePoints = rule.points;
                         }
                     } else if (resolvedFilter.other) {
@@ -311,8 +331,7 @@ function calculateScore(playerIdx) {
                         }
                     }
                 } else if (rule.per === 'baseBest') {
-                    // Add the highest base points among matching cards
-                    const matching = hand.filter(c => matchesFilter(c, resolvedFilter));
+                    const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
                     if (matching.length > 0) {
                         rulePoints = Math.max(...matching.map(c => c.points || 0));
                     }
@@ -331,6 +350,9 @@ function calculateScore(playerIdx) {
         total += cardScore;
         cardScores[card.id] = cardScore;
     });
+
+    // Blanked cards always score 0
+    blanked.forEach(cid => { cardScores[cid] = 0; });
 
     return { total, cardScores };
 }

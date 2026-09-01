@@ -27,7 +27,9 @@
 //     // of.id: '...'   – match a specific card by id
 //     // effects.type: 'clears' – cards of this suit have their negative scoring ignored
 //     // effects.type: 'clearsBest' – single card among matching suits with highest negative penalty is cleared
-//     // effects.of.suits: ['...', '...'] – candidate suits for clearsBest
+//     // effects.type: 'blanks' – cards of these suits are blanked (no name, no points, no bonuses/penalties/effects)
+//     // effects.of.suits: ['...', '...'] – candidate suits for clearsBest or blanks
+//     // effects.of.except: ['cardId', '...'] – exclude these specific card IDs from the effect (e.g. blanks except Mountain)
 // }
 
 const CARDS = [
