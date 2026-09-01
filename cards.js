@@ -203,4 +203,68 @@ const CARDS = [
             { type: 'blanks', of: { suits: ['flame'], except: ['lightning'] } },
         ],
     },
+
+    // ===== Armies =====
+    {
+        id: 'elvenArchers',
+        name: { en: 'Elven Archers' },
+        set: 'base',
+        suit: 'army',
+        points: 10,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 5, per: 'flatIfNone', of: { suit: 'weather' } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'knights',
+        name: { en: 'Knights' },
+        set: 'base',
+        suit: 'army',
+        points: 20,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { points: -8, per: 'flatIfNone', of: { suit: 'leader' } },
+        ],
+    },
+    {
+        id: 'rangers',
+        name: { en: 'Rangers' },
+        set: 'base',
+        suit: 'army',
+        points: 5,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 10, per: 'each', of: { suit: 'land' } },
+                { type: 'clearsTarget', suit: 'army' },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'dwarvishInfantry',
+        name: { en: 'Dwarvish Infantry' },
+        set: 'base',
+        suit: 'army',
+        points: 15,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { points: -2, per: 'each', of: { suit: 'army', other: true } },
+        ],
+    },
+    {
+        id: 'lightCavalry',
+        name: { en: 'Light Cavalry' },
+        set: 'base',
+        suit: 'army',
+        points: 17,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { points: -2, per: 'each', of: { suit: 'land' } },
+        ],
+    },
 ];
