@@ -1,5 +1,5 @@
 // Fantasy Realms Calculator — Service Worker
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = 'fantasy-realms-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [

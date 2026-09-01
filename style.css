@@ -1,20 +1,23 @@
 /* ===== Fantasy Realms Calculator — Styles ===== */
 
 :root {
-    --bg-body: #1e1b4b;
-    --bg-card: #312e81;
-    --bg-nav: #312e81;
-    --text-primary: #e0e7ff;
-    --text-secondary: #a5b4fc;
-    --text-muted: #818cf8;
-    --border: #4338ca;
-    --border-light: #3730a3;
-    --hover-bg: #4338ca;
-    --accent: #a78bfa;
-    --green: #a78bfa;
-    --red: #f87171;
+    --bg-body: #f5f1eb;
+    --bg-card: #ffffff;
+    --bg-nav: #2d1b69;
+    --text-primary: #1a1a2e;
+    --text-secondary: #5a5a7a;
+    --text-muted: #9090b0;
+    --border: #ddd6f0;
+    --hover-bg: #f0ecf8;
+    --accent: #7c3aed;
+    --accent-light: #ede9fe;
+    --green: #10b981;
+    --green-bg: #d1fae5;
+    --red: #ef4444;
+    --red-bg: #fee2e2;
     --radius: 8px;
     --nav-height: 52px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
     font-size: 16px;
 }
 
@@ -40,7 +43,7 @@ html, body {
     height: var(--nav-height);
     padding: 0 12px;
     background: var(--bg-nav);
-    border-bottom: 1px solid var(--border);
+    color: #fff;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -51,11 +54,12 @@ html, body {
 .nav-title {
     font-weight: 700;
     font-size: 1rem;
+    color: #fff;
 }
 
 .current-player-name {
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: rgba(255,255,255,0.75);
     white-space: nowrap;
 }
 
@@ -64,21 +68,20 @@ html, body {
     align-items: center;
     gap: 3px;
     padding: 3px 8px;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(255,255,255,0.2);
     border-radius: 20px;
     font-size: 0.72rem;
-    color: var(--text-secondary);
+    color: rgba(255,255,255,0.7);
     text-decoration: none;
-    opacity: 0.65;
-    transition: opacity 0.15s;
+    transition: all 0.15s;
     white-space: nowrap;
 }
-.bb-link:hover { opacity: 1; color: var(--accent); border-color: var(--accent); }
+.bb-link:hover { opacity: 1; color: #fff; border-color: rgba(255,255,255,0.5); }
 
 .nav-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text-secondary);
+    background: rgba(255,255,255,0.12);
+    border: none;
+    color: #fff;
     width: 34px;
     height: 34px;
     border-radius: 6px;
@@ -86,14 +89,15 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.15s;
 }
-.nav-btn:hover { background: var(--hover-bg); }
+.nav-btn:hover { background: rgba(255,255,255,0.2); }
 
 /* ===== Settings Panel ===== */
 .settings-overlay {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.4);
+    inset: 0;
+    background: rgba(0,0,0,0.3);
     z-index: 100;
     display: none;
 }
@@ -104,13 +108,14 @@ html, body {
     top: 0; left: 0; bottom: 0;
     width: 300px;
     max-width: 85vw;
-    background: var(--bg-body);
+    background: #fff;
     border-right: 1px solid var(--border);
     z-index: 101;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     overflow-y: auto;
     padding: 20px;
+    color: var(--text-primary);
 }
 .settings-panel.open { transform: translateX(0); }
 
@@ -130,7 +135,9 @@ html, body {
     height: 30px;
     border-radius: 4px;
     font-size: 1rem;
+    transition: background 0.1s;
 }
+.settings-close:hover { background: var(--hover-bg); }
 
 .settings-group { margin-bottom: 16px; }
 
@@ -149,13 +156,14 @@ html, body {
     border-radius: 6px;
     cursor: pointer;
     gap: 8px;
+    transition: background 0.1s;
 }
 .settings-player-row:hover { background: var(--hover-bg); }
 .settings-player-row.active {
-    background: var(--accent);
-    color: white;
+    background: var(--accent-light);
+    color: var(--accent);
 }
-.settings-player-row.active .settings-player-name { color: white; }
+.settings-player-row.active .settings-player-name { color: var(--accent); font-weight: 600; }
 
 .settings-player-color {
     width: 10px;
@@ -170,7 +178,12 @@ html, body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: text;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background 0.1s;
 }
+.settings-player-name:hover { background: rgba(0,0,0,0.04); }
 
 .settings-player-remove {
     background: none;
@@ -180,6 +193,7 @@ html, body {
     font-size: 0.85rem;
     padding: 4px;
     border-radius: 4px;
+    transition: color 0.1s;
 }
 .settings-player-remove:hover { color: var(--red); }
 
@@ -197,6 +211,7 @@ html, body {
     font-size: 0.85rem;
     cursor: pointer;
     font-family: inherit;
+    transition: all 0.15s;
 }
 .settings-add-player:hover {
     background: var(--hover-bg);
@@ -221,6 +236,7 @@ html, body {
     font-weight: 600;
     cursor: pointer;
     text-align: center;
+    transition: all 0.1s;
 }
 .lang-btn.active {
     background: var(--accent);
@@ -241,7 +257,9 @@ html, body {
     font-weight: 600;
     cursor: pointer;
     font-family: inherit;
+    transition: opacity 0.15s;
 }
+.settings-new-game:hover { opacity: 0.9; }
 
 /* ===== Main Layout ===== */
 .app-layout {
@@ -306,14 +324,15 @@ html, body {
     padding: 8px;
     text-align: center;
     cursor: pointer;
-    transition: transform 0.15s, opacity 0.15s;
+    transition: transform 0.15s, box-shadow 0.15s;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    box-shadow: var(--shadow);
 }
 .hand-card:hover {
     transform: translateY(-2px);
-    opacity: 0.8;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
 }
 
 .hand-card-name {
@@ -399,6 +418,8 @@ html, body {
     font-size: 0.8rem;
     font-family: inherit;
     outline: none;
+    box-shadow: var(--shadow);
+    transition: border-color 0.15s;
 }
 .card-search::placeholder {
     color: var(--text-muted);
@@ -422,46 +443,41 @@ html, body {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 10px;
+    padding: 12px 10px;
     text-align: center;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    transition: all 0.15s;
     position: relative;
+    box-shadow: var(--shadow);
 }
 .card-grid-item:hover {
     border-color: var(--accent);
     transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
-.card-grid-item.disabled {
+.card-grid-item.taken {
     cursor: default;
-    opacity: 0.5;
+    opacity: 0.4;
+    pointer-events: none;
 }
-.card-grid-item.disabled:hover {
+.card-grid-item.taken:hover {
     border-color: var(--border);
     transform: none;
+    box-shadow: var(--shadow);
 }
 .card-grid-item.in-hand {
     border-color: var(--green);
-    background: rgba(167, 139, 250, 0.1);
+    background: var(--green-bg);
+}
+.card-grid-item.in-hand:hover {
+    border-color: var(--green);
+    transform: translateY(-1px);
 }
 
 .card-grid-name {
     font-size: 0.85rem;
     font-weight: 600;
-    margin-bottom: 4px;
     color: var(--text-primary);
-}
-
-.card-grid-suit {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    margin-bottom: 2px;
-}
-
-.card-grid-base {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
 }
 
 .card-grid-check {
@@ -472,7 +488,7 @@ html, body {
     color: var(--green);
 }
 
-/* ===== Version & Credit ===== */
+/* ===== Version ===== */
 .settings-version {
     text-align: center;
     padding: 16px 0 8px;
@@ -481,27 +497,10 @@ html, body {
     opacity: 0.6;
 }
 
-.settings-credit {
-    text-align: center;
-    padding: 0 0 16px;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    opacity: 0.6;
-}
-.settings-credit a {
-    color: inherit;
-    text-decoration: underline;
-}
-
 /* ===== Responsive ===== */
 @media (max-width: 480px) {
     .settings-panel { max-width: 90vw; }
     .card-grid { grid-template-columns: repeat(2, 1fr); }
     .hand-card { width: 85px; }
     .card-search { width: 120px; }
-}
-
-@media (min-width: 768px) {
-    .card-grid { grid-template-columns: repeat(3, 1fr); }
-    .hand-card { width: 110px; }
 }

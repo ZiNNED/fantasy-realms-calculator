@@ -79,7 +79,7 @@ const CARDS = [
         name: { en: 'Enchantress', nl: 'Enchantress' },
         set: 'base',
         suit: 'wizard',
-        points: 25,
+        points: 5,
         scoring: [
             { points: 5, per: 'each', of: { suit: 'land', other: true } },
             { points: 5, per: 'each', of: { suit: 'weather', other: true } },
@@ -93,7 +93,7 @@ const CARDS = [
         name: { en: 'Collector', nl: 'Collector' },
         set: 'base',
         suit: 'wizard',
-        points: 25,
+        points: 7,
         scoring: [
             { per: 'tiered', of: { suit: 'same' }, tiers: [
                 { min: 5, points: 100 },

@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fantasy Realms Calculator</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <link rel="stylesheet" href="style.css?v=6">
     <link rel="icon" type="image/png" href="assets/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#7c3aed">
+    <meta name="theme-color" content="#2d1b69">
 </head>
 <body>
 
@@ -41,15 +41,13 @@
     <div class="settings-group">
         <div class="settings-group-title" data-i18n="language">Language</div>
         <div class="settings-lang-row">
-            <button class="lang-btn" id="langEn" onclick="setLanguage('en')">🇬🇧</button>
-            <button class="lang-btn" id="langNl" onclick="setLanguage('nl')">🇳🇱</button>
+            <button class="lang-btn active" id="langEn" onclick="setLanguage('en')">🇬🇧 English</button>
         </div>
     </div>
     <div class="settings-group" style="margin-top: 24px;">
         <button class="settings-new-game" onclick="newGame()" data-i18n="newGame">New Game</button>
     </div>
-    <div class="settings-version">v0.2</div>
-    <div class="settings-credit" id="settingsCredit"></div>
+    <div class="settings-version">v0.5</div>
 </div>
 
 <!-- Main Content -->
@@ -70,14 +68,14 @@
     <div class="card-grid-section">
         <div class="card-grid-header">
             <span data-i18n="cards">Cards</span>
-            <input class="card-search" id="cardSearch" type="text" data-i18n="search" placeholder="Search cards..." oninput="onCardSearch()">
+            <input class="card-search" id="cardSearch" type="text" placeholder="Search cards..." oninput="onCardSearch()">
         </div>
         <div class="card-grid" id="cardGrid"></div>
     </div>
 </div>
 
-<script src="cards.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="cards.js?v=6"></script>
+<script src="app.js?v=6"></script>
 
 <script>
     if ('serviceWorker' in navigator) {

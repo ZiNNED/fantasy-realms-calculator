@@ -1,9 +1,13 @@
 // Fantasy Realms Calculator — App Logic
+
 // ===== State =====
 let state = {
     currentPlayer: 0,
     players: [{ name: 'Player 1', hand: [] }],
 };
+
+// ===== Player Colors =====
+const PLAYER_COLORS = ['#7c3aed', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
 
 // ===== i18n =====
 let LANG = localStorage.getItem('fantasyRealmLang') || 'en';
@@ -26,24 +30,7 @@ const I18N = {
         players: 'Players',
         language: 'Language',
         search: 'Search cards...',
-    },
-    nl: {
-        total: 'Totaal',
-        score: 'Score',
-        cards: 'Kaarten',
-        suit: 'Type',
-        points: 'Punten',
-        hand: 'Hand',
-        clickToAdd: 'Tik een kaart om toe te voegen',
-        tapToRemove: 'Tik kaart om te verwijderen',
-        base: 'Basis',
-        confirmNewGame: 'Nieuw spel starten? Dit reset alle scores.',
-        player: 'Speler',
-        addPlayer: 'Speler toevoegen',
-        newGame: 'Nieuw spel',
-        players: 'Spelers',
-        language: 'Taal',
-        search: 'Kaarten zoeken...',
+        taken: 'Taken',
     },
 };
 
@@ -56,6 +43,7 @@ function translateUI() {
 }
 
 function setLanguage(lang) {
+    if (lang !== 'en') return; // Only English supported
     LANG = lang;
     localStorage.setItem('fantasyRealmLang', lang);
     translateUI();
@@ -66,11 +54,18 @@ function setLanguage(lang) {
 
 function updateLangButtons() {
     document.getElementById('langEn').classList.toggle('active', LANG === 'en');
-    document.getElementById('langNl').classList.toggle('active', LANG === 'nl');
 }
 
 function defaultPlayerName(index) {
     return t('player') + ' ' + (index + 1);
+}
+
+// ===== Helpers =====
+function isCardTaken(cardId, excludePlayerIdx) {
+    return state.players.some((p, i) => {
+        if (excludePlayerIdx !== undefined && i === excludePlayerIdx) return false;
+        return p.hand.some(c => c.id === cardId);
+    });
 }
 
 // ===== Player Management =====
@@ -109,15 +104,71 @@ function rebuildPlayerList() {
     state.players.forEach((p, i) => {
         const row = document.createElement('div');
         row.className = 'settings-player-row' + (i === state.currentPlayer ? ' active' : '');
-        row.innerHTML = `
-            <span class="settings-player-color" style="background:${['#7c3aed','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444'][i]}"></span>
-            <span class="settings-player-name">${p.name} (${p.hand.length})</span>
-            <button class="settings-player-remove" onclick="event.stopPropagation(); removePlayer(${i})">✕</button>
-        `;
+        row.dataset.player = i + 1;
+
+        const color = document.createElement('span');
+        color.className = 'settings-player-color';
+        color.style.background = PLAYER_COLORS[i % PLAYER_COLORS.length];
+        row.appendChild(color);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'settings-player-name';
+        nameSpan.textContent = p.name;
+        nameSpan.onclick = function(e) {
+            e.stopPropagation();
+            editPlayerName(i);
+        };
+        row.appendChild(nameSpan);
+
+        if (i > 0) {
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'settings-player-remove';
+            removeBtn.textContent = '✕';
+            removeBtn.onclick = function(e) {
+                e.stopPropagation();
+                removePlayer(i);
+            };
+            row.appendChild(removeBtn);
+        }
+
         row.onclick = () => { selectPlayer(i); closeSettings(); };
         list.appendChild(row);
     });
     updateActivePlayerName();
+}
+
+function editPlayerName(idx) {
+    const rows = document.querySelectorAll('.settings-player-row');
+    if (idx >= rows.length) return;
+    const row = rows[idx];
+    const nameSpan = row.querySelector('.settings-player-name');
+    if (!nameSpan) return;
+
+    const current = nameSpan.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = current;
+    input.style.cssText = 'width:100%;background:white;color:#1a1a2e;border:1px solid #7c3aed;border-radius:4px;padding:2px 6px;font-size:0.85rem;font-family:inherit;outline:none;';
+
+    nameSpan.style.display = 'none';
+    nameSpan.parentNode.insertBefore(input, nameSpan.nextSibling);
+    input.focus();
+    input.select();
+
+    function save() {
+        const val = input.value.trim() || defaultPlayerName(idx);
+        nameSpan.textContent = val;
+        state.players[idx].name = val;
+        input.remove();
+        nameSpan.style.display = '';
+        updateActivePlayerName();
+    }
+
+    input.onblur = save;
+    input.onkeydown = function(e) {
+        if (e.key === 'Enter') { save(); }
+        if (e.key === 'Escape') { nameSpan.style.display = ''; input.remove(); }
+    };
 }
 
 function updateActivePlayerName() {
@@ -134,7 +185,6 @@ function matchesFilter(card, filter) {
         if (!card.subtypes) return false;
         return filter.subtypes.some(s => (card.subtypes || []).includes(s));
     }
-    // If no specific filter criteria, it matches (e.g. { other: true } alone)
     if (!filter.oddPoints && !filter.suit && !filter.id && !filter.subtypes) return true;
     return false;
 }
@@ -144,7 +194,6 @@ function calculateScore(playerIdx) {
     let total = 0;
     const breakdown = [];
 
-    // Collect active clears effects: which suits have their negative scoring ignored
     const clearedSuits = new Set();
     hand.forEach(c => {
         (c.effects || []).forEach(effect => {
@@ -160,29 +209,16 @@ function calculateScore(playerIdx) {
 
         if (card.scoring && card.scoring.length > 0) {
             card.scoring.forEach(rule => {
-                // If this card's suit is cleared, skip its negative scoring rules
-                if (isCleared && rule.points < 0) {
-                    return;
-                }
+                if (isCleared && rule.points < 0) return;
 
-                // Resolve dynamic filters
                 const resolvedFilter = { ...rule.of };
                 if (resolvedFilter.suit === 'same') {
                     resolvedFilter.suit = card.suit;
                 }
 
-                let count = 0;
+                let count = hand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
 
-                // Determine which cards match the filter
-                const matching = hand.filter(c => matchesFilter(c, resolvedFilter));
-                count = matching.length;
-
-                // Exclude self if other: true
-                if (resolvedFilter.other) {
-                    if (matchesFilter(card, resolvedFilter)) count--;
-                }
-
-                // Apply per-mode
                 let rulePoints = 0;
 
                 if (rule.per === 'flat') {
@@ -203,7 +239,6 @@ function calculateScore(playerIdx) {
                         rulePoints = rule.points;
                     }
                 } else if (rule.per === 'tiered') {
-                    // Tiers are ordered highest min first; find the first match
                     if (rule.tiers) {
                         for (const tier of rule.tiers) {
                             if (count >= tier.min) {
@@ -237,13 +272,13 @@ function calculateScore(playerIdx) {
     return { total, breakdown };
 }
 
-// ===== Card Management =====
+// ===== Card Management (shared pool) =====
 function addCardToHand(cardId) {
     const player = state.players[state.currentPlayer];
-    if (player.hand.length >= 7) return; // Max 7 cards in Fantasy Realms
+    if (player.hand.length >= 7) return;
+    if (isCardTaken(cardId)) return; // Already in someone's hand
     const card = CARDS.find(c => c.id === cardId);
     if (!card) return;
-    if (player.hand.find(c => c.id === cardId)) return; // Already have it
     player.hand.push({ ...card });
     renderHand();
     renderCardGrid();
@@ -275,16 +310,14 @@ function renderHand() {
         return;
     }
 
-    // Build hand cards
     container.innerHTML = player.hand.map(card => `
         <div class="hand-card" onclick="removeCardFromHand('${card.id}')" title="${t('tapToRemove')}">
-            <div class="hand-card-name">${card.name[LANG] || card.name.en}</div>
+            <div class="hand-card-name">${card.name.en}</div>
             <div class="hand-card-suit">${card.suit}</div>
             <div class="hand-card-points">${card.points}</div>
         </div>
     `).join('');
 
-    // Calculate and display score
     const result = calculateScore(state.currentPlayer);
     if (scoreContainer) {
         scoreContainer.innerHTML = `
@@ -293,7 +326,7 @@ function renderHand() {
                 ${result.breakdown.filter(b => b.isBase).map(b => {
                     const card = CARDS.find(c => c.id === b.card);
                     return `<div class="score-row">
-                        <span class="score-card-name">${card ? (card.name[LANG] || card.name.en) : b.card}</span>
+                        <span class="score-card-name">${card ? card.name.en : b.card}</span>
                         <span class="score-value">${b.points}</span>
                     </div>`;
                 }).join('')}
@@ -310,25 +343,42 @@ function renderCardGrid() {
     let filtered = CARDS;
     if (search) {
         filtered = CARDS.filter(c =>
-            (c.name.en || '').toLowerCase().includes(search) ||
-            (c.name.nl || '').toLowerCase().includes(search) ||
+            c.name.en.toLowerCase().includes(search) ||
             c.suit.toLowerCase().includes(search) ||
             c.id.toLowerCase().includes(search)
         );
     }
 
-    const handIds = player ? player.hand.map(c => c.id) : [];
+    const playerHandIds = player ? new Set(player.hand.map(c => c.id)) : new Set();
+    const full = player && player.hand.length >= 7;
+    const otherPlayerHandIds = new Set();
+    state.players.forEach((p, i) => {
+        if (i !== state.currentPlayer) {
+            p.hand.forEach(c => otherPlayerHandIds.add(c.id));
+        }
+    });
 
     container.innerHTML = filtered.map(card => {
-        const inHand = handIds.includes(card.id);
-        const disabled = inHand || (player && player.hand.length >= 7);
+        const inHand = playerHandIds.has(card.id);
+        const taken = otherPlayerHandIds.has(card.id);
+        let cls = 'card-grid-item';
+        if (inHand) cls += ' in-hand';
+        else if (taken) cls += ' taken';
+
+        let onclick = '';
+        if (inHand) {
+            onclick = `removeCardFromHand('${card.id}')`;
+        } else if (!taken && !full) {
+            onclick = `addCardToHand('${card.id}')`;
+        }
+
+        const check = inHand ? '<div class="card-grid-check">✓</div>' : '';
+        const takenLabel = taken ? '' : ''; // Visual opacity handles it
+
         return `
-            <div class="card-grid-item ${inHand ? 'in-hand' : ''} ${disabled ? 'disabled' : ''}"
-                 onclick="${disabled ? '' : `addCardToHand('${card.id}')`}">
-                <div class="card-grid-name">${card.name[LANG] || card.name.en}</div>
-                <div class="card-grid-suit">${card.suit}</div>
-                <div class="card-grid-base">${card.points} ${t('base')}</div>
-                ${inHand ? '<div class="card-grid-check">✓</div>' : ''}
+            <div class="${cls}" onclick="${onclick}">
+                <div class="card-grid-name">${card.name.en}</div>
+                ${check}
             </div>
         `;
     }).join('');
@@ -377,13 +427,12 @@ function onCardSearch() {
 
 // ===== Init =====
 window.addEventListener('DOMContentLoaded', function() {
-    // Load persisted settings
     try {
         const saved = JSON.parse(localStorage.getItem('fantasyRealmSettings'));
         if (saved) {
             if (saved.lang) {
-                LANG = saved.lang;
-                localStorage.setItem('fantasyRealmLang', saved.lang);
+                LANG = 'en'; // Only English supported
+                localStorage.setItem('fantasyRealmLang', 'en');
             }
             if (saved.players) {
                 state.players = saved.players.map(p => ({
@@ -402,10 +451,4 @@ window.addEventListener('DOMContentLoaded', function() {
     rebuildPlayerList();
     renderHand();
     renderCardGrid();
-
-    // Credit line
-    const credit = document.getElementById('settingsCredit');
-    if (credit) {
-        credit.innerHTML = 'inspired by <a href="https://boardgamegeek.com/boardgame/223040/fantasy-realms">Fantasy Realms</a>';
-    }
 });
