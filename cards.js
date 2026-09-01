@@ -32,6 +32,7 @@
 //         { type: 'blanks', of: { suits: ['land'], except: ['mountain'] } },
 //     ]
 //     // penalty type: 'selfBlank' – card blanks itself unless matching cards are present
+//     //   when: 'present' – blanks itself when matching cards ARE present (inverse)
 //     // per: 'each'  – count matching cards, multiply by points
 //     // per: 'flat'  – boolean check, award points once
 //     // per: 'flatAllIds' – award points when ALL specified card IDs (+ optional suits) are present

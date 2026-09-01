@@ -247,14 +247,18 @@ function calculateScore(playerIdx) {
             }
         });
     });
-    // Self-blanking: card blanks itself unless a condition is met
+    // Self-blanking: card blanks itself unless a condition is met (default: blank when absent)
     hand.forEach(card => {
         (card.penalty || []).forEach(rule => {
             if (rule.type === 'selfBlank' && rule.of) {
                 const resolvedFilter = { ...rule.of };
                 let count = hand.filter(c => matchesFilter(c, resolvedFilter)).length;
                 if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
-                if (count === 0) blanked.add(card.id);
+                if (rule.when === 'present') {
+                    if (count > 0) blanked.add(card.id);
+                } else {
+                    if (count === 0) blanked.add(card.id);
+                }
             }
         });
     });
