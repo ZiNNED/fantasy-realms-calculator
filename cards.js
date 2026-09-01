@@ -30,7 +30,7 @@
 //     // penalty type: 'selfBlank' – card blanks itself unless matching cards are present
 //     // per: 'each'  – count matching cards, multiply by points
 //     // per: 'flat'  – boolean check, award points once
-//     // per: 'flatAllIds' – award points when ALL specified card IDs are present at least once (uses of.ids)
+//     // per: 'flatAllIds' – award points when ALL specified card IDs (+ optional suits) are present
 //     // per: 'flatIfNone' – award points when NO matching cards exist (count === 0)
 //     // per: 'tiered' – find highest tier with count >= min, award those points
 //     // per: 'threshold' – if count >= min, award points

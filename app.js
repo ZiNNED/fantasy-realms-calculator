@@ -340,12 +340,20 @@ function calculateScore(playerIdx) {
                         if (count > 0) rulePoints = rule.points;
                     }
                 } else if (rule.per === 'flatAllIds') {
-                    // Award points when ALL specified card IDs are present at least once
+                    // Award points when ALL specified card IDs and suits are present
+                    let allMet = true;
                     if (resolvedFilter.ids && Array.isArray(resolvedFilter.ids)) {
                         const handIds = activeHand.map(c => c.id);
-                        const allPresent = resolvedFilter.ids.every(id => handIds.includes(id));
-                        if (allPresent) rulePoints = rule.points;
+                        if (!resolvedFilter.ids.every(id => handIds.includes(id))) allMet = false;
                     }
+                    if (resolvedFilter.suits && Array.isArray(resolvedFilter.suits)) {
+                        const handSuits = activeHand.map(c => c.suit);
+                        if (!resolvedFilter.suits.every(s => handSuits.includes(s))) allMet = false;
+                    }
+                    if (resolvedFilter.suit) {
+                        if (!activeHand.some(c => c.suit === resolvedFilter.suit)) allMet = false;
+                    }
+                    if (allMet) rulePoints = rule.points;
                 } else if (rule.per === 'flatIfNone') {
                     // Award points when NO matching cards exist
                     if (count === 0) rulePoints = rule.points;
