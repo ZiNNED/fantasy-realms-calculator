@@ -201,12 +201,13 @@ function updateActivePlayerName() {
 function matchesFilter(card, filter) {
     if (filter.oddPoints && card.points % 2 !== 0) return true;
     if (filter.suit && card.suit === filter.suit) return true;
+    if (filter.suits && Array.isArray(filter.suits) && filter.suits.includes(card.suit)) return true;
     if (filter.id && card.id === filter.id) return true;
     if (filter.subtypes) {
         if (!card.subtypes) return false;
         return filter.subtypes.some(s => (card.subtypes || []).includes(s));
     }
-    if (!filter.oddPoints && !filter.suit && !filter.id && !filter.subtypes) return true;
+    if (!filter.oddPoints && !filter.suit && !filter.suits && !filter.id && !filter.subtypes) return true;
     return false;
 }
 
@@ -269,6 +270,12 @@ function calculateScore(playerIdx) {
                                 break;
                             }
                         }
+                    }
+                } else if (rule.per === 'baseBest') {
+                    // Add the highest base points among matching cards
+                    const matching = hand.filter(c => matchesFilter(c, resolvedFilter));
+                    if (matching.length > 0) {
+                        rulePoints = Math.max(...matching.map(c => c.points || 0));
                     }
                 }
 

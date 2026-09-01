@@ -17,12 +17,13 @@
 //     // per: 'flat'  – boolean check, award points once
 //     // per: 'tiered' – find highest tier with count >= min, award those points
 //     // per: 'threshold' – if count >= min, award points
+//     // per: 'baseBest' – add the highest base points (card.points) among matching cards
 //     // scoringMode: 'best' – only the HIGHEST-scoring rule in scoring[] applies (mutually exclusive OR)
 //     // of.other: true – exclude the card itself from the count
 //     // of.all: true  – every card in hand must match (boolean check)
 //     // of.oddPoints: true – computed: card.points % 2 !== 0
-//     // of.suit: 'same' – match cards with the same suit as this card
-//     // of.suit: '...' – match by suit name
+//     // of.suit: '...' – match by suit name (single)
+//     // of.suits: ['...', '...'] – match ANY of these suits (array, OR logic)
 //     // of.id: '...'   – match a specific card by id
 //     // effects.type: 'clears' – cards of this suit have their negative scoring ignored
 // }
