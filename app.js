@@ -220,24 +220,23 @@ function matchesFilter(card, filter) {
     return false;
 }
 
-function calculateScore(playerIdx) {
-    const hand = state.players[playerIdx].hand.map(id => getCard(id)).filter(Boolean);
-
-    // ===== Phase 1: Compute blanked cards (from penalty arrays) =====
+function scoreCards(cards) {
+    // Take an array of card objects, compute full scoring (blanks → clears → bonus → penalty)
+    //
+    // ===== Phase 1: Compute blanked cards =====
     const blanked = new Set();
-    hand.forEach(card => {
+    cards.forEach(card => {
         (card.penalty || []).forEach(rule => {
             if (rule.type === 'blanks' && rule.of) {
                 if (rule.mode === 'allExcept') {
-                    // Blank all cards EXCEPT those matching of.suits or of.ids
-                    hand.forEach(candidate => {
+                    cards.forEach(candidate => {
                         const matchesSuit = rule.of.suits && rule.of.suits.includes(candidate.suit);
                         const matchesIds = rule.of.ids && rule.of.ids.includes(candidate.id);
                         if (matchesSuit || matchesIds) return;
                         blanked.add(candidate.id);
                     });
                 } else if (rule.of.suits) {
-                    hand.forEach(candidate => {
+                    cards.forEach(candidate => {
                         if (rule.of.suits.includes(candidate.suit)) {
                             if (rule.of.except && rule.of.except.includes(candidate.id)) return;
                             blanked.add(candidate.id);
@@ -247,12 +246,11 @@ function calculateScore(playerIdx) {
             }
         });
     });
-    // Self-blanking: card blanks itself unless a condition is met (default: blank when absent)
-    hand.forEach(card => {
+    cards.forEach(card => {
         (card.penalty || []).forEach(rule => {
             if (rule.type === 'selfBlank' && rule.of) {
                 const resolvedFilter = { ...rule.of };
-                let count = hand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                let count = cards.filter(c => matchesFilter(c, resolvedFilter)).length;
                 if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
                 if (rule.when === 'present') {
                     if (count > 0) blanked.add(card.id);
@@ -264,13 +262,11 @@ function calculateScore(playerIdx) {
     });
 
     // ===== Phase 2: Active hand = non-blanked cards only =====
-    const activeHand = hand.filter(c => !blanked.has(c.id));
+    const activeHand = cards.filter(c => !blanked.has(c.id));
 
-    // ===== Phase 3: Process clear effects from bonus rules =====
+    // ===== Phase 3: Process clear effects =====
     const clearedSuits = new Set();
     const clearedCards = new Set();
-    // clearedTargets: Map<cardSuit | '*', Set<targetSuit>>
-    // '*' = global (applies to all cards), otherwise scoped to that suit
     const clearedTargets = new Map();
     clearedTargets.set('*', new Set());
     activeHand.forEach(card => {
@@ -281,13 +277,9 @@ function calculateScore(playerIdx) {
             }
             if (rule.type === 'clearsTarget' && rule.suit) {
                 if (rule.on && rule.on.suit) {
-                    // Scoped: only applies to cards of this suit
-                    if (!clearedTargets.has(rule.on.suit)) {
-                        clearedTargets.set(rule.on.suit, new Set());
-                    }
+                    if (!clearedTargets.has(rule.on.suit)) clearedTargets.set(rule.on.suit, new Set());
                     clearedTargets.get(rule.on.suit).add(rule.suit);
                 } else {
-                    // Global: applies to all cards
                     clearedTargets.get('*').add(rule.suit);
                 }
             }
@@ -298,7 +290,7 @@ function calculateScore(playerIdx) {
                     if (!rule.of.suits.includes(candidate.suit)) return;
                     let totalNeg = 0;
                     (candidate.penalty || []).forEach(pr => {
-                        if (pr.type) return; // non-numerical (blanks already processed)
+                        if (pr.type) return;
                         if (pr.points >= 0) return;
                         if (penaltyTargetsCleared(pr, clearedTargets, candidate.suit)) return;
                         const resolvedFilter = { ...pr.of };
@@ -342,7 +334,7 @@ function calculateScore(playerIdx) {
             const bonusPointsList = [];
 
             bonusRules.forEach(rule => {
-                if (rule.type) return; // non-numerical (clears/clearsBest already processed)
+                if (rule.type) return;
 
                 const resolvedFilter = { ...rule.of };
                 if (resolvedFilter.suit === 'same') {
@@ -366,7 +358,6 @@ function calculateScore(playerIdx) {
                         if (count > 0) rulePoints = rule.points;
                     }
                 } else if (rule.per === 'flatAllIds') {
-                    // Award points when ALL specified card IDs and suits are present
                     let allMet = true;
                     if (resolvedFilter.ids && Array.isArray(resolvedFilter.ids)) {
                         const handIds = activeHand.map(c => c.id);
@@ -381,7 +372,6 @@ function calculateScore(playerIdx) {
                     }
                     if (allMet) rulePoints = rule.points;
                 } else if (rule.per === 'flatIfNone') {
-                    // Award points when NO matching cards exist
                     if (count === 0) rulePoints = rule.points;
                 } else if (rule.per === 'each') {
                     rulePoints = Math.max(0, count) * rule.points;
@@ -394,31 +384,19 @@ function calculateScore(playerIdx) {
                         }
                     }
                 } else if (rule.per === 'manyOf') {
-                    // Count distinct suits with at least min cards, award points per suit
                     const suitCounts = {};
-                    activeHand.forEach(c => {
-                        suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
-                    });
+                    activeHand.forEach(c => { suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1; });
                     const min = rule.min || 1;
-                    const qualifyingSuits = Object.values(suitCounts).filter(cnt => cnt >= min).length;
-                    rulePoints = qualifyingSuits * (rule.points || 0);
+                    rulePoints = Object.values(suitCounts).filter(cnt => cnt >= min).length * (rule.points || 0);
                 } else if (rule.per === 'runs') {
-                    // Find consecutive sequences of unique base point values, score each run
                     const uniquePoints = [...new Set(activeHand.map(c => c.points || 0))].sort((a, b) => a - b);
-                    const tiers = (rule.tiers || []).sort((a, b) => b.min - a.min); // highest first
+                    const tiers = (rule.tiers || []).sort((a, b) => b.min - a.min);
                     let runLen = 0;
                     for (let i = 0; i < uniquePoints.length; i++) {
-                        if (i > 0 && uniquePoints[i] === uniquePoints[i - 1] + 1) {
-                            runLen++;
-                        } else {
-                            runLen = 1;
-                        }
+                        if (i > 0 && uniquePoints[i] === uniquePoints[i - 1] + 1) { runLen++; } else { runLen = 1; }
                         const nextExists = i + 1 < uniquePoints.length && uniquePoints[i + 1] === uniquePoints[i] + 1;
                         if (!nextExists && runLen >= 3) {
-                            // Run ended — score it
-                            for (const tier of tiers) {
-                                if (runLen >= tier.min) { rulePoints += tier.points; break; }
-                            }
+                            for (const tier of tiers) { if (runLen >= tier.min) { rulePoints += tier.points; break; } }
                         }
                     }
                 } else if (rule.per === 'baseBest') {
@@ -441,8 +419,8 @@ function calculateScore(playerIdx) {
         // ----- Penalties -----
         if (card.penalty && !isCleared) {
             card.penalty.forEach(rule => {
-                if (rule.type) return; // non-numerical (blanks already processed)
-                if (penaltyTargetsCleared(rule, clearedTargets, card.suit)) return; // suit cleared from all penalties
+                if (rule.type) return;
+                if (penaltyTargetsCleared(rule, clearedTargets, card.suit)) return;
 
                 const resolvedFilter = { ...rule.of };
                 if (resolvedFilter.suit === 'same') {
@@ -457,7 +435,6 @@ function calculateScore(playerIdx) {
                 } else if (rule.per === 'flat' || rule.per === 'threshold') {
                     if (count >= (rule.min || 1)) cardScore += rule.points;
                 } else if (rule.per === 'flatIfNone') {
-                    // Apply penalty when NO matching cards exist
                     if (count === 0) cardScore += rule.points;
                 } else if (rule.per === 'tiered' && rule.tiers) {
                     for (const tier of rule.tiers) {
@@ -471,10 +448,47 @@ function calculateScore(playerIdx) {
         cardScores[card.id] = cardScore;
     });
 
-    // Blanked cards always score 0
     blanked.forEach(cid => { cardScores[cid] = 0; });
 
     return { total, cardScores };
+}
+
+function calculateScore(playerIdx) {
+    const hand = state.players[playerIdx].hand.map(id => getCard(id)).filter(Boolean);
+    const SUITS = ['wizard', 'leader', 'beast', 'land', 'weather', 'flood', 'flame', 'weapon', 'army', 'artifact', 'wild'];
+
+    // Check if any card has a suit-changing bonus
+    const changeSuitCards = hand.filter(c =>
+        (c.bonus && c.bonus.rules || []).some(r => r.type === 'changeSuit')
+    );
+
+    if (changeSuitCards.length > 0) {
+        let bestResult = null;
+        let bestScore = -Infinity;
+
+        for (const changer of changeSuitCards) {
+            for (const target of hand) {
+                if (target.id === changer.id) continue;
+                for (const newSuit of SUITS) {
+                    if (newSuit === target.suit) continue;
+                    const trialHand = hand.map(c =>
+                        c.id === target.id ? { ...c, suit: newSuit } : c
+                    );
+                    const result = scoreCards(trialHand);
+                    if (result.total > bestScore) {
+                        bestScore = result.total;
+                        result.changeSuit = { targetId: target.id, from: target.suit, to: newSuit };
+                        result.suitOverrides = { [target.id]: newSuit };
+                        bestResult = result;
+                    }
+                }
+            }
+        }
+
+        return bestResult;
+    }
+
+    return scoreCards(hand);
 }
 
 function handCapacity(player) {
@@ -622,7 +636,8 @@ function updateAllScores() {
         // Accumulate suit score (only if card is in hand)
         const player = state.players[state.currentPlayer];
         if (player && player.hand.includes(card.id)) {
-            suitScores[card.suit] = (suitScores[card.suit] || 0) + pts;
+            const effectiveSuit = result.suitOverrides && result.suitOverrides[card.id] || card.suit;
+            suitScores[effectiveSuit] = (suitScores[effectiveSuit] || 0) + pts;
         }
     });
 
@@ -635,6 +650,19 @@ function updateAllScores() {
     // Update summary
     document.getElementById('totalPoints').textContent = result.total;
 
+    // Show suit change info if applicable
+    const changeInfo = document.getElementById('changeSuitInfo');
+    if (changeInfo) {
+        if (result.changeSuit) {
+            const target = getCard(result.changeSuit.targetId);
+            const name = target ? target.name.en : result.changeSuit.targetId;
+            changeInfo.textContent = `♻ ${name}: ${result.changeSuit.from} → ${result.changeSuit.to}`;
+            changeInfo.style.display = 'block';
+        } else {
+            changeInfo.style.display = 'none';
+        }
+    }
+
     // Build suit breakdown in summary
     const breakdownContainer = document.getElementById('suitBreakdown');
     breakdownContainer.innerHTML = '';
@@ -642,7 +670,8 @@ function updateAllScores() {
         const score = suitScores[suit] || 0;
         const hasCards = state.players[state.currentPlayer].hand.some(cid => {
             const c = getCard(cid);
-            return c && c.suit === suit;
+            const effectiveSuit = result.suitOverrides && result.suitOverrides[cid] || (c && c.suit);
+            return effectiveSuit === suit;
         });
         if (!hasCards) return;
 

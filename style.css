@@ -513,6 +513,17 @@ html, body {
     font-size: 0.9rem;
 }
 
+.change-suit-info {
+    display: none;
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    background: rgba(194, 200, 42, 0.12);
+    border-radius: 6px;
+    color: #c2c82a;
+    font-weight: 600;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 480px) {
     .scroll-content {

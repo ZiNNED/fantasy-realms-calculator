@@ -20,6 +20,8 @@
 //             { type: 'clearsTarget', suit: 'army' },
 //             // Scoped target clear: removes a suit from penalty rules on cards of a specific suit only
 //             { type: 'clearsTarget', suit: 'army', on: { suit: 'flood' } },
+//             // Suit change: auto-optimises changing one other card's suit (brute-force)
+//             { type: 'changeSuit' },
 //         ]
 //     },
 //     penalty: [
