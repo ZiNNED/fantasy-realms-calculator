@@ -162,30 +162,36 @@ function calculateScore(playerIdx) {
             card.scoring.forEach(rule => {
                 // If this card's suit is cleared, skip its negative scoring rules
                 if (isCleared && rule.points < 0) {
-                    return; // Skip this rule entirely
+                    return;
+                }
+
+                // Resolve dynamic filters
+                const resolvedFilter = { ...rule.of };
+                if (resolvedFilter.suit === 'same') {
+                    resolvedFilter.suit = card.suit;
                 }
 
                 let count = 0;
 
                 // Determine which cards match the filter
-                const matching = hand.filter(c => matchesFilter(c, rule.of));
+                const matching = hand.filter(c => matchesFilter(c, resolvedFilter));
                 count = matching.length;
 
                 // Exclude self if other: true
-                if (rule.of.other) {
-                    if (matchesFilter(card, rule.of)) count--;
+                if (resolvedFilter.other) {
+                    if (matchesFilter(card, resolvedFilter)) count--;
                 }
 
                 // Apply per-mode
                 let rulePoints = 0;
 
                 if (rule.per === 'flat') {
-                    if (rule.of.all) {
-                        const allMatch = hand.every(c => matchesFilter(c, rule.of));
-                        if (allMatch && (!rule.of.other || hand.length > 0)) {
+                    if (resolvedFilter.all) {
+                        const allMatch = hand.every(c => matchesFilter(c, resolvedFilter));
+                        if (allMatch && (!resolvedFilter.other || hand.length > 0)) {
                             rulePoints = rule.points;
                         }
-                    } else if (rule.of.other) {
+                    } else if (resolvedFilter.other) {
                         if (count > 0) rulePoints = rule.points;
                     } else {
                         if (count > 0) rulePoints = rule.points;
@@ -195,6 +201,16 @@ function calculateScore(playerIdx) {
                 } else if (rule.per === 'threshold') {
                     if (count >= (rule.min || 1)) {
                         rulePoints = rule.points;
+                    }
+                } else if (rule.per === 'tiered') {
+                    // Tiers are ordered highest min first; find the first match
+                    if (rule.tiers) {
+                        for (const tier of rule.tiers) {
+                            if (count >= tier.min) {
+                                rulePoints = tier.points;
+                                break;
+                            }
+                        }
                     }
                 }
 
