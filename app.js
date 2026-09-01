@@ -393,6 +393,15 @@ function calculateScore(playerIdx) {
                             if (count >= tier.min) { rulePoints = tier.points; break; }
                         }
                     }
+                } else if (rule.per === 'manyOf') {
+                    // Count distinct suits with at least min cards, award points per suit
+                    const suitCounts = {};
+                    activeHand.forEach(c => {
+                        suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
+                    });
+                    const min = rule.min || 1;
+                    const qualifyingSuits = Object.values(suitCounts).filter(cnt => cnt >= min).length;
+                    rulePoints = qualifyingSuits * (rule.points || 0);
                 } else if (rule.per === 'baseBest') {
                     const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
                     if (matching.length > 0) {

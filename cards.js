@@ -39,6 +39,7 @@
 //     // per: 'flatIfNone' – award points when NO matching cards exist (count === 0)
 //     // per: 'tiered' – find highest tier with count >= min, award those points
 //     // per: 'threshold' – if count >= min, award points
+//     // per: 'manyOf' – count how many distinct suits have at least min cards, award points per qualifying suit
 //     // per: 'baseBest' – add the highest base points (card.points) among matching cards
 //     // of.other: true – exclude the card itself from the count
 //     // of.all: true  – every card in hand must match (boolean check)
@@ -133,11 +134,7 @@ const CARDS = [
         bonus: {
             mode: 'sum',
             rules: [
-                { per: 'tiered', of: { suit: 'same' }, tiers: [
-                    { min: 5, points: 100 },
-                    { min: 4, points: 40 },
-                    { min: 3, points: 10 },
-                ]},
+                { points: 10, per: 'manyOf', min: 3 },
             ],
         },
         penalty: [],
