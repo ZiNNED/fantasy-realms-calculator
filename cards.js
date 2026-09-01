@@ -27,6 +27,7 @@
 //         { type: 'blanks', of: { suits: ['army'] } },
 //         { type: 'blanks', of: { suits: ['land'], except: ['mountain'] } },
 //     ]
+//     // penalty type: 'selfBlank' – card blanks itself unless matching cards are present
 //     // per: 'each'  – count matching cards, multiply by points
 //     // per: 'flat'  – boolean check, award points once
 //     // per: 'flatAllIds' – award points when ALL specified card IDs are present at least once (uses of.ids)

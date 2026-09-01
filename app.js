@@ -237,6 +237,17 @@ function calculateScore(playerIdx) {
             }
         });
     });
+    // Self-blanking: card blanks itself unless a condition is met
+    hand.forEach(card => {
+        (card.penalty || []).forEach(rule => {
+            if (rule.type === 'selfBlank' && rule.of) {
+                const resolvedFilter = { ...rule.of };
+                let count = hand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+                if (count === 0) blanked.add(card.id);
+            }
+        });
+    });
 
     // ===== Phase 2: Active hand = non-blanked cards only =====
     const activeHand = hand.filter(c => !blanked.has(c.id));
