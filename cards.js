@@ -29,6 +29,7 @@
 //     ]
 //     // per: 'each'  – count matching cards, multiply by points
 //     // per: 'flat'  – boolean check, award points once
+//     // per: 'flatAllIds' – award points when ALL specified card IDs are present at least once (uses of.ids)
 //     // per: 'flatIfNone' – award points when NO matching cards exist (count === 0)
 //     // per: 'tiered' – find highest tier with count >= min, award those points
 //     // per: 'threshold' – if count >= min, award points
@@ -267,5 +268,80 @@ const CARDS = [
         penalty: [
             { points: -2, per: 'each', of: { suit: 'land' } },
         ],
+    },
+
+    // ===== Lands =====
+    {
+        id: 'cavern',
+        name: { en: 'Cavern' },
+        set: 'base',
+        suit: 'land',
+        points: 6,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 25, per: 'flat', of: { ids: ['dwarvishInfantry', 'dragon'] } },
+                { type: 'clears', suit: 'weather' },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'bellTower',
+        name: { en: 'Bell Tower' },
+        set: 'base',
+        suit: 'land',
+        points: 8,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 15, per: 'flat', of: { suit: 'wizard' } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'earthElemental',
+        name: { en: 'Earth Elemental' },
+        set: 'base',
+        suit: 'land',
+        points: 4,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 15, per: 'each', of: { suit: 'land', other: true } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'mountain',
+        name: { en: 'Mountain' },
+        set: 'base',
+        suit: 'land',
+        points: 9,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 50, per: 'flatAllIds', of: { ids: ['smoke', 'wildfire'] } },
+                { type: 'clears', suit: 'flood' },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'forest',
+        name: { en: 'Forest' },
+        set: 'base',
+        suit: 'land',
+        points: 7,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 12, per: 'each', of: { suit: 'beast' } },
+                { points: 12, per: 'flatAllIds', of: { ids: ['elvenArchers'] } },
+            ],
+        },
+        penalty: [],
     },
 ];
