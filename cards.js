@@ -40,6 +40,7 @@
 //     // per: 'tiered' – find highest tier with count >= min, award those points
 //     // per: 'threshold' – if count >= min, award points
 //     // per: 'manyOf' – count how many distinct suits have at least min cards, award points per qualifying suit
+//     // per: 'runs' – find consecutive sequences of unique base point values (+1 steps). tiers: [{min, points}] — score each run independently, sum across runs
 //     // per: 'baseBest' – add the highest base points (card.points) among matching cards
 //     // of.other: true – exclude the card itself from the count
 //     // of.all: true  – every card in hand must match (boolean check)

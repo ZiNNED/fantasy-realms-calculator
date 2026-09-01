@@ -402,6 +402,25 @@ function calculateScore(playerIdx) {
                     const min = rule.min || 1;
                     const qualifyingSuits = Object.values(suitCounts).filter(cnt => cnt >= min).length;
                     rulePoints = qualifyingSuits * (rule.points || 0);
+                } else if (rule.per === 'runs') {
+                    // Find consecutive sequences of unique base point values, score each run
+                    const uniquePoints = [...new Set(activeHand.map(c => c.points || 0))].sort((a, b) => a - b);
+                    const tiers = (rule.tiers || []).sort((a, b) => b.min - a.min); // highest first
+                    let runLen = 0;
+                    for (let i = 0; i < uniquePoints.length; i++) {
+                        if (i > 0 && uniquePoints[i] === uniquePoints[i - 1] + 1) {
+                            runLen++;
+                        } else {
+                            runLen = 1;
+                        }
+                        const nextExists = i + 1 < uniquePoints.length && uniquePoints[i + 1] === uniquePoints[i] + 1;
+                        if (!nextExists && runLen >= 3) {
+                            // Run ended — score it
+                            for (const tier of tiers) {
+                                if (runLen >= tier.min) { rulePoints += tier.points; break; }
+                            }
+                        }
+                    }
                 } else if (rule.per === 'baseBest') {
                     const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
                     if (matching.length > 0) {
