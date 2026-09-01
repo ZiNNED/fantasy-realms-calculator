@@ -618,4 +618,15 @@ const CARDS = [
         ] },
         penalty: [],
     },
+    {
+        id: 'protectionRune',
+        name: { en: 'Protection Rune' },
+        set: 'base',
+        suit: 'artifact',
+        points: 1,
+        bonus: { mode: 'sum', rules: [
+            { type: 'clears', suit: 'all' },
+        ] },
+        penalty: [],
+    },
 ];

@@ -273,7 +273,11 @@ function scoreCards(cards) {
         const bonusRules = (card.bonus && card.bonus.rules) || [];
         bonusRules.forEach(rule => {
             if (rule.type === 'clears' && rule.suit) {
-                clearedSuits.add(rule.suit);
+                if (rule.suit === 'all') {
+                    SUIT_ORDER.forEach(s => clearedSuits.add(s));
+                } else {
+                    clearedSuits.add(rule.suit);
+                }
             }
             if (rule.type === 'clearsTarget' && rule.suit) {
                 if (rule.on && rule.on.suit) {
