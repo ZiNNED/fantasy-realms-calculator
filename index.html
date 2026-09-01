@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fantasy Realms Calculator</title>
-    <link rel="stylesheet" href="style.css?v=1">
+    <link rel="stylesheet" href="style.css?v=3">
     <link rel="icon" type="image/png" href="assets/icon-512.png">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
     <link rel="manifest" href="manifest.json">
@@ -48,20 +48,36 @@
     <div class="settings-group" style="margin-top: 24px;">
         <button class="settings-new-game" onclick="newGame()" data-i18n="newGame">New Game</button>
     </div>
-    <div class="settings-version">v0.1</div>
+    <div class="settings-version">v0.2</div>
     <div class="settings-credit" id="settingsCredit"></div>
 </div>
 
 <!-- Main Content -->
-<div class="scroll-area" id="scrollArea">
-    <div class="placeholder">
-        <p>Fantasy Realms Calculator — coming soon.</p>
+<div class="app-layout">
+    <!-- Hand + Score (top section) -->
+    <div class="hand-section">
+        <div class="hand-header">
+            <span data-i18n="hand">Hand</span>
+            <span class="hand-count">(<span id="handCount">0</span>/7)</span>
+            <span class="hand-score" id="scoreDisplay"></span>
+        </div>
+        <div class="hand-cards" id="handDisplay">
+            <div class="hand-empty" data-i18n="clickToAdd">Tap a card to add it to your hand</div>
+        </div>
     </div>
-    <div style="height: 80px;"></div>
+
+    <!-- Card grid (bottom section) -->
+    <div class="card-grid-section">
+        <div class="card-grid-header">
+            <span data-i18n="cards">Cards</span>
+            <input class="card-search" id="cardSearch" type="text" data-i18n="search" placeholder="Search cards..." oninput="onCardSearch()">
+        </div>
+        <div class="card-grid" id="cardGrid"></div>
+    </div>
 </div>
 
-<script src="cards.js?v=1"></script>
-<script src="app.js?v=1"></script>
+<script src="cards.js?v=3"></script>
+<script src="app.js?v=3"></script>
 
 <script>
     if ('serviceWorker' in navigator) {
