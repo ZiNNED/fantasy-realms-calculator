@@ -417,4 +417,75 @@ const CARDS = [
             { type: 'selfBlank', of: { suit: 'flame' } },
         ],
     },
+    {
+        id: 'forge',
+        name: { en: 'Forge' },
+        set: 'base',
+        suit: 'flame',
+        points: 9,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 9, per: 'each', of: { suit: 'weapon' } },
+                { points: 9, per: 'each', of: { suit: 'artifact' } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'lightning',
+        name: { en: 'Lightning' },
+        set: 'base',
+        suit: 'flame',
+        points: 11,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 30, per: 'flat', of: { id: 'rainstorm' } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'fireElemental',
+        name: { en: 'Fire Elemental' },
+        set: 'base',
+        suit: 'flame',
+        points: 4,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 15, per: 'each', of: { suit: 'flame', other: true } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'candle',
+        name: { en: 'Candle' },
+        set: 'base',
+        suit: 'flame',
+        points: 2,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 100, per: 'flatAllIds', of: { ids: ['bookOfChanges', 'bellTower'], suits: ['wizard'] } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'wildfire',
+        name: { en: 'Wildfire' },
+        set: 'base',
+        suit: 'flame',
+        points: 40,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { type: 'blanks', mode: 'allExcept', of: {
+                suits: ['flame', 'wizard', 'weather', 'weapon', 'artifact'],
+                ids: ['mountain', 'greatFlood', 'island', 'unicorn', 'dragon'],
+            } },
+        ],
+    },
 ];
