@@ -339,7 +339,7 @@ const CARDS = [
             mode: 'sum',
             rules: [
                 { points: 12, per: 'each', of: { suit: 'beast' } },
-                { points: 12, per: 'flatAllIds', of: { ids: ['elvenArchers'] } },
+                { points: 12, per: 'flat', of: { id: 'elvenArchers' } },
             ],
         },
         penalty: [],
