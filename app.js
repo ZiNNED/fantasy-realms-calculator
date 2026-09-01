@@ -3,7 +3,7 @@
 // ============================================
 
 // ===== Suit Definitions =====
-const SUIT_ORDER = ['wizard', 'leader', 'beast', 'land', 'weather', 'flood', 'flame'];
+const SUIT_ORDER = ['wizard', 'leader', 'beast', 'land', 'weather', 'flood', 'flame', 'weapon', 'army', 'artifact', 'wild'];
 const SUIT_LABELS = {
     wizard: 'Wizards',
     leader: 'Leaders',
@@ -12,6 +12,10 @@ const SUIT_LABELS = {
     weather: 'Weather',
     flood: 'Floods',
     flame: 'Flames',
+    weapon: 'Weapons',
+    army: 'Armies',
+    artifact: 'Artifacts',
+    wild: 'Wild',
 };
 const SUIT_COLORS = {
     wizard: '#7c3aed',
@@ -21,6 +25,10 @@ const SUIT_COLORS = {
     weather: '#3498db',
     flood: '#2980b9',
     flame: '#e74c3c',
+    weapon: '#e84393',
+    army: '#6c5ce7',
+    artifact: '#fdcb6e',
+    wild: '#00b894',
 };
 
 // ===== Player Colors =====
