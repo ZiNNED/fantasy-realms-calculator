@@ -345,4 +345,74 @@ const CARDS = [
         },
         penalty: [],
     },
+
+    // ===== Weathers =====
+    {
+        id: 'blizzard',
+        name: { en: 'Blizzard' },
+        set: 'base',
+        suit: 'weather',
+        points: 30,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { type: 'blanks', of: { suits: ['flood'] } },
+            { points: -5, per: 'each', of: { suits: ['army', 'leader', 'beast', 'flame'] } },
+        ],
+    },
+    {
+        id: 'rainstorm',
+        name: { en: 'Rainstorm' },
+        set: 'base',
+        suit: 'weather',
+        points: 8,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 10, per: 'each', of: { suit: 'flood' } },
+            ],
+        },
+        penalty: [
+            { type: 'blanks', of: { suits: ['flame'], except: ['lightning'] } },
+        ],
+    },
+    {
+        id: 'whirlwind',
+        name: { en: 'Whirlwind' },
+        set: 'base',
+        suit: 'weather',
+        points: 13,
+        bonus: {
+            mode: 'best',
+            rules: [
+                { points: 40, per: 'flatAllIds', of: { ids: ['rainstorm', 'blizzard'] } },
+                { points: 40, per: 'flatAllIds', of: { ids: ['rainstorm', 'greatFlood'] } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'airElemental',
+        name: { en: 'Air Elemental' },
+        set: 'base',
+        suit: 'weather',
+        points: 4,
+        bonus: {
+            mode: 'sum',
+            rules: [
+                { points: 15, per: 'each', of: { suit: 'weather', other: true } },
+            ],
+        },
+        penalty: [],
+    },
+    {
+        id: 'smoke',
+        name: { en: 'Smoke' },
+        set: 'base',
+        suit: 'weather',
+        points: 27,
+        bonus: { mode: 'sum', rules: [] },
+        penalty: [
+            { type: 'selfBlank', of: { suit: 'flame' } },
+        ],
+    },
 ];
