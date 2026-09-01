@@ -227,13 +227,23 @@ function calculateScore(playerIdx) {
     const blanked = new Set();
     hand.forEach(card => {
         (card.penalty || []).forEach(rule => {
-            if (rule.type === 'blanks' && rule.of && rule.of.suits) {
-                hand.forEach(candidate => {
-                    if (rule.of.suits.includes(candidate.suit)) {
-                        if (rule.of.except && rule.of.except.includes(candidate.id)) return;
+            if (rule.type === 'blanks' && rule.of) {
+                if (rule.mode === 'allExcept') {
+                    // Blank all cards EXCEPT those matching of.suits or of.ids
+                    hand.forEach(candidate => {
+                        const matchesSuit = rule.of.suits && rule.of.suits.includes(candidate.suit);
+                        const matchesIds = rule.of.ids && rule.of.ids.includes(candidate.id);
+                        if (matchesSuit || matchesIds) return;
                         blanked.add(candidate.id);
-                    }
-                });
+                    });
+                } else if (rule.of.suits) {
+                    hand.forEach(candidate => {
+                        if (rule.of.suits.includes(candidate.suit)) {
+                            if (rule.of.except && rule.of.except.includes(candidate.id)) return;
+                            blanked.add(candidate.id);
+                        }
+                    });
+                }
             }
         });
     });

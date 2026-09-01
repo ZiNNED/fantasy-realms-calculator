@@ -25,6 +25,8 @@
 //         { points: -10, per: 'each', of: { suit: 'leader', other: true } },
 //         // Blank effects: removes all bonuses, penalties and base points from cards
 //         { type: 'blanks', of: { suits: ['army'] } },
+//         // allExcept mode: blanks everything EXCEPT the listed suits and IDs
+//         { type: 'blanks', mode: 'allExcept', of: { suits: ['flame', 'wizard', 'weather', 'weapon', 'artifact'], ids: ['mountain', 'greatFlood', 'island', 'unicorn', 'dragon'] } },
 //         { type: 'blanks', of: { suits: ['land'], except: ['mountain'] } },
 //     ]
 //     // penalty type: 'selfBlank' – card blanks itself unless matching cards are present
