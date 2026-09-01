@@ -144,13 +144,28 @@ function calculateScore(playerIdx) {
     let total = 0;
     const breakdown = [];
 
+    // Collect active clears effects: which suits have their negative scoring ignored
+    const clearedSuits = new Set();
+    hand.forEach(c => {
+        (c.effects || []).forEach(effect => {
+            if (effect.type === 'clears' && effect.suit) {
+                clearedSuits.add(effect.suit);
+            }
+        });
+    });
+
     hand.forEach(card => {
         let cardScore = card.points || 0;
+        const isCleared = clearedSuits.has(card.suit);
 
         if (card.scoring && card.scoring.length > 0) {
             card.scoring.forEach(rule => {
+                // If this card's suit is cleared, skip its negative scoring rules
+                if (isCleared && rule.points < 0) {
+                    return; // Skip this rule entirely
+                }
+
                 let count = 0;
-                let applicable = false;
 
                 // Determine which cards match the filter
                 const matching = hand.filter(c => matchesFilter(c, rule.of));
@@ -158,7 +173,6 @@ function calculateScore(playerIdx) {
 
                 // Exclude self if other: true
                 if (rule.of.other) {
-                    // Subtract if this card itself matches the filter
                     if (matchesFilter(card, rule.of)) count--;
                 }
 
@@ -166,18 +180,14 @@ function calculateScore(playerIdx) {
                 let rulePoints = 0;
 
                 if (rule.per === 'flat') {
-                    // Boolean: award points if condition is met
                     if (rule.of.all) {
-                        // All cards in hand must match
                         const allMatch = hand.every(c => matchesFilter(c, rule.of));
                         if (allMatch && (!rule.of.other || hand.length > 0)) {
                             rulePoints = rule.points;
                         }
                     } else if (rule.of.other) {
-                        // At least one other card matches
                         if (count > 0) rulePoints = rule.points;
                     } else {
-                        // Condition is met (self counts)
                         if (count > 0) rulePoints = rule.points;
                     }
                 } else if (rule.per === 'each') {
@@ -188,7 +198,6 @@ function calculateScore(playerIdx) {
                     }
                 }
 
-                // Only add to breakdown if non-zero
                 if (rulePoints !== 0) {
                     breakdown.push({
                         card: card.id,
