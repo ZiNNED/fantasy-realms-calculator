@@ -17,6 +17,7 @@
 //     // per: 'flat'  – boolean check, award points once
 //     // per: 'tiered' – find highest tier with count >= min, award those points
 //     // per: 'threshold' – if count >= min, award points
+//     // scoringMode: 'best' – only the HIGHEST-scoring rule in scoring[] applies (mutually exclusive OR)
 //     // of.other: true – exclude the card itself from the count
 //     // of.all: true  – every card in hand must match (boolean check)
 //     // of.oddPoints: true – computed: card.points % 2 !== 0
@@ -55,9 +56,10 @@ const CARDS = [
         set: 'promo',
         suit: 'wizard',
         points: 3,
+        scoringMode: 'best',
         scoring: [
             { points: 3, per: 'each', of: { oddPoints: true, other: true } },
-            { points: 50, per: 'flat', of: { oddPoints: true, all: true } },
+            { points: 47, per: 'flat', of: { oddPoints: true, all: true } },
         ],
         effects: [],
     },

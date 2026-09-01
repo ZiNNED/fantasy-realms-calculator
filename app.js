@@ -233,6 +233,8 @@ function calculateScore(playerIdx) {
         const isCleared = clearedSuits.has(card.suit);
 
         if (card.scoring && card.scoring.length > 0) {
+            const rulePointsList = [];
+
             card.scoring.forEach(rule => {
                 if (isCleared && rule.points < 0) return;
 
@@ -274,8 +276,14 @@ function calculateScore(playerIdx) {
                     }
                 }
 
-                cardScore += rulePoints;
+                rulePointsList.push(rulePoints);
             });
+
+            if (card.scoringMode === 'best') {
+                cardScore += Math.max(...rulePointsList);
+            } else {
+                rulePointsList.forEach(rp => { cardScore += rp; });
+            }
         }
 
         total += cardScore;
