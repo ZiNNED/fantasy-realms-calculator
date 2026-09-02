@@ -22,6 +22,9 @@
 //             { type: 'clearsTarget', suit: 'army', on: { suit: 'flood' } },
 //             // Suit change: auto-optimises changing one other card's suit (brute-force)
 //             { type: 'changeSuit' },
+//             // Copy suit: this card's own suit becomes the most profitable candidate suit
+//             //   (does NOT take the duplicated card's bonus/penalty/base points)
+//             { type: 'copySuit', of: { suits: ['army', 'land', 'weather', 'flood', 'flame'] } },
 //             // Extra suits: card also counts as these suits for matching purposes
 //             { type: 'extraSuits', suits: ['flame', 'weather'] },
 //         ]

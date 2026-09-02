@@ -542,10 +542,16 @@ function calculateScore(playerIdx) {
         (c.bonus && c.bonus.rules || []).some(r => r.type === 'changeSuit')
     );
 
-    if (changeSuitCards.length > 0) {
+    // Check if any card has a copy-suit bonus
+    const copySuitCards = hand.filter(c =>
+        (c.bonus && c.bonus.rules || []).some(r => r.type === 'copySuit')
+    );
+
+    if (changeSuitCards.length > 0 || copySuitCards.length > 0) {
         let bestResult = null;
         let bestScore = -Infinity;
 
+        // Handle changeSuit (change another card's suit)
         for (const changer of changeSuitCards) {
             for (const target of hand) {
                 if (target.id === changer.id) continue;
@@ -565,7 +571,26 @@ function calculateScore(playerIdx) {
             }
         }
 
-        return bestResult;
+        // Handle copySuit (change this card's own suit to one of the available options)
+        for (const copier of copySuitCards) {
+            const copyRule = (copier.bonus && copier.bonus.rules || []).find(r => r.type === 'copySuit');
+            const candidateSuits = (copyRule && copyRule.of && copyRule.of.suits) || SUITS;
+            for (const newSuit of candidateSuits) {
+                if (newSuit === copier.suit) continue;
+                const trialHand = hand.map(c =>
+                    c.id === copier.id ? { ...c, suit: newSuit } : c
+                );
+                const result = scoreCards(trialHand);
+                if (result.total > bestScore) {
+                    bestScore = result.total;
+                    result.copySuit = { cardId: copier.id, from: copier.suit, to: newSuit };
+                    result.suitOverrides = { [copier.id]: newSuit };
+                    bestResult = result;
+                }
+            }
+        }
+
+        return bestResult || scoreCards(hand);
     }
 
     return scoreCards(hand);
@@ -737,6 +762,11 @@ function updateAllScores() {
             const target = getCard(result.changeSuit.targetId);
             const name = target ? target.name.en : result.changeSuit.targetId;
             changeInfo.textContent = `♻ ${name}: ${result.changeSuit.from} → ${result.changeSuit.to}`;
+            changeInfo.style.display = 'block';
+        } else if (result.copySuit) {
+            const copier = getCard(result.copySuit.cardId);
+            const name = copier ? copier.name.en : result.copySuit.cardId;
+            changeInfo.textContent = `♻ ${name}: ${result.copySuit.from} → ${result.copySuit.to}`;
             changeInfo.style.display = 'block';
         } else {
             changeInfo.style.display = 'none';
