@@ -25,6 +25,9 @@
 //             // Copy suit: this card's own suit becomes the most profitable candidate suit
 //             //   (does NOT take the duplicated card's bonus/penalty/base points)
 //             { type: 'copySuit', of: { suits: ['army', 'land', 'weather', 'flood', 'flame'] } },
+//             // Copy card: this card duplicates name, suit, points, penalty of another card (but NOT bonus)
+//             //   Auto-optimises. Optional of: { suits: [...] } restricts which targets are eligible.
+//             { type: 'copyCard', of: { suits: ['artifact', 'leader', 'wizard', 'weapon', 'beast'] } },
 //             // Extra suits: card also counts as these suits for matching purposes
 //             { type: 'extraSuits', suits: ['flame', 'weather'] },
 //         ]
