@@ -692,6 +692,8 @@ function buildCardSections() {
 
         const summary = document.createElement('summary');
         summary.className = 'suit-summary';
+        summary.style.background = suitColor;
+        summary.style.color = suit === 'wild' ? '#333' : '#fff';
 
         const label = document.createElement('span');
         label.className = 'suit-label';
@@ -702,7 +704,7 @@ function buildCardSections() {
         suitScore.className = 'suit-score';
         suitScore.id = 'suitScore-' + suit;
         suitScore.textContent = '0';
-        suitScore.style.cssText = 'font-size:0.95rem;font-weight:600;color:var(--text-secondary);';
+        suitScore.style.cssText = 'font-size:0.95rem;font-weight:600;';
         summary.appendChild(suitScore);
 
         details.appendChild(summary);
@@ -723,8 +725,8 @@ function buildCardSections() {
             } else if (fullHand) {
                 row.classList.add('disabled');
             }
-            row.style.background = suitColor;
-            row.style.color = '#fff';
+            // Suit accent: left border in suit color
+            row.style.borderLeft = '3px solid ' + suitColor;
 
             // Indicator (empty circle or check)
             const indicator = document.createElement('span');
