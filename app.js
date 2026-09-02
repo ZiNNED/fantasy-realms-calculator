@@ -234,7 +234,7 @@ function scoreCards(cards) {
     //
     _extraSuitsMap = null;
 
-    // ===== Phase 1: Compute blanked cards =====
+    // ===== Phase 1a: Compute blanked cards (blank-others) =====
     const blanked = new Set();
     cards.forEach(card => {
         (card.penalty || []).forEach(rule => {
@@ -265,11 +265,16 @@ function scoreCards(cards) {
             }
         });
     });
+
+    // ===== Phase 1b: Self-blank — evaluate against the hand AFTER general blanks =====
+    // A blanked card does not exist for counting purposes, so selfBlank checks
+    // must look at the remaining (non-blanked) hand only.
+    const postBlankHand = cards.filter(c => !blanked.has(c.id));
     cards.forEach(card => {
         (card.penalty || []).forEach(rule => {
             if (rule.type === 'selfBlank' && rule.of) {
                 const resolvedFilter = { ...rule.of };
-                let count = cards.filter(c => matchesFilter(c, resolvedFilter)).length;
+                let count = postBlankHand.filter(c => matchesFilter(c, resolvedFilter)).length;
                 if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
                 if (rule.when === 'present') {
                     if (count > 0) blanked.add(card.id);
