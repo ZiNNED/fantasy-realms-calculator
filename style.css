@@ -403,6 +403,17 @@ html, body {
     white-space: nowrap;
 }
 
+.card-change-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--accent-light);
+    color: var(--accent);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
 .card-score {
     font-size: 0.85rem;
     font-weight: 600;

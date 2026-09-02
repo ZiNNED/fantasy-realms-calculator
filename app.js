@@ -555,50 +555,68 @@ function calculateScore(playerIdx) {
     if (changeSuitCards.length > 0 || copySuitCards.length > 0 || copyCardCards.length > 0) {
         let bestResult = null;
         let bestScore = -Infinity;
+        const allOverrides = {};
 
-        // Handle changeSuit (change another card's suit)
+        // Handle changeSuit (change another card's suit) — single best permutation
         for (const changer of changeSuitCards) {
             for (const target of hand) {
                 if (target.id === changer.id) continue;
                 for (const newSuit of SUITS) {
                     if (newSuit === target.suit) continue;
                     const trialHand = hand.map(c =>
-                        c.id === target.id ? { ...c, suit: newSuit } : c
+                        c.id === target.id ? { ...c, suit: newSuit } :
+                        allOverrides[c.id] ? { ...c, suit: allOverrides[c.id] } : c
                     );
                     const result = scoreCards(trialHand);
                     if (result.total > bestScore) {
                         bestScore = result.total;
                         result.changeSuit = { targetId: target.id, from: target.suit, to: newSuit };
-                        result.suitOverrides = { [target.id]: newSuit };
                         bestResult = result;
                     }
                 }
             }
         }
 
-        // Handle copySuit (change this card's own suit to one of the available options)
+        // Collect change overrides from best changeSuit result
+        if (bestResult && bestResult.changeSuit) {
+            allOverrides[bestResult.changeSuit.targetId] = bestResult.changeSuit.to;
+        }
+
+        // Handle copySuit — independently optimize each copier
+        const copySuits = [];
         for (const copier of copySuitCards) {
             const copyRule = (copier.bonus && copier.bonus.rules || []).find(r => r.type === 'copySuit');
             const candidateSuits = (copyRule && copyRule.of && copyRule.of.suits) || SUITS;
+            let bestSuit = copier.suit;
+            let bestSuitScore = -Infinity;
+
             for (const newSuit of candidateSuits) {
                 if (newSuit === copier.suit) continue;
                 const trialHand = hand.map(c =>
-                    c.id === copier.id ? { ...c, suit: newSuit } : c
+                    c.id === copier.id ? { ...c, suit: newSuit } :
+                    allOverrides[c.id] ? { ...c, suit: allOverrides[c.id] } : c
                 );
                 const result = scoreCards(trialHand);
-                if (result.total > bestScore) {
-                    bestScore = result.total;
-                    result.copySuit = { cardId: copier.id, from: copier.suit, to: newSuit };
-                    result.suitOverrides = { [copier.id]: newSuit };
-                    bestResult = result;
+                if (result.total > bestSuitScore) {
+                    bestSuitScore = result.total;
+                    bestSuit = newSuit;
                 }
+            }
+
+            if (bestSuit !== copier.suit) {
+                copySuits.push({ cardId: copier.id, from: copier.suit, to: bestSuit });
+                allOverrides[copier.id] = bestSuit;
             }
         }
 
-        // Handle copyCard (duplicate name, points, suit, penalty of another card — but not bonus)
+        // Handle copyCard — independently optimize each copier
+        const copyCards = [];
         for (const copier of copyCardCards) {
             const copyRule = (copier.bonus && copier.bonus.rules || []).find(r => r.type === 'copyCard');
             const allowedSuits = (copyRule && copyRule.of && copyRule.of.suits) || null;
+            let bestTarget = null;
+            let bestCopyScore = -Infinity;
+
             for (const target of hand) {
                 if (target.id === copier.id) continue;
                 if (allowedSuits && !allowedSuits.includes(target.suit)) continue;
@@ -610,19 +628,54 @@ function calculateScore(playerIdx) {
                         points: target.points,
                         bonus: { mode: 'sum', rules: [] },
                         penalty: JSON.parse(JSON.stringify(target.penalty || [])),
-                    } : c
+                    } :
+                    allOverrides[c.id] ? { ...c, suit: allOverrides[c.id] } : c
                 );
                 const result = scoreCards(trialHand);
-                if (result.total > bestScore) {
-                    bestScore = result.total;
-                    result.copyCard = { cardId: copier.id, targetId: target.id, from: copier.suit, to: target.suit, points: target.points };
-                    result.suitOverrides = { [copier.id]: target.suit };
-                    bestResult = result;
+                if (result.total > bestCopyScore) {
+                    bestCopyScore = result.total;
+                    bestTarget = target;
                 }
+            }
+
+            if (bestTarget && bestTarget.id !== copier.id) {
+                copyCards.push({ cardId: copier.id, targetId: bestTarget.id, from: copier.suit, to: bestTarget.suit, points: bestTarget.points });
+                allOverrides[copier.id] = bestTarget.suit;
             }
         }
 
-        return bestResult || scoreCards(hand);
+        // Score the final hand with all overrides applied
+        const finalHand = hand.map(c =>
+            allOverrides[c.id] ? { ...c, suit: allOverrides[c.id] } : c
+        );
+
+        // If we have copyCards, apply their full transformation
+        let fullyTransformedHand = finalHand;
+        for (const cc of copyCards) {
+            const target = getCard(cc.targetId);
+            if (target) {
+                fullyTransformedHand = fullyTransformedHand.map(c =>
+                    c.id === cc.cardId ? {
+                        ...c,
+                        name: { en: '↻ ' + (target.name?.en || target.id) },
+                        suit: target.suit,
+                        points: target.points,
+                        bonus: { mode: 'sum', rules: [] },
+                        penalty: JSON.parse(JSON.stringify(target.penalty || [])),
+                    } : c
+                );
+            }
+        }
+
+        const finalResult = scoreCards(fullyTransformedHand);
+        finalResult.suitOverrides = allOverrides;
+        if (copySuits.length > 0) finalResult.copySuits = copySuits;
+        if (copyCards.length > 0) finalResult.copyCards = copyCards;
+        if (bestResult && bestResult.changeSuit) {
+            finalResult.changeSuit = bestResult.changeSuit;
+        }
+
+        return finalResult;
     }
 
     return scoreCards(hand);
@@ -769,6 +822,37 @@ function updateAllScores() {
         const ptsEl = document.getElementById('pts-' + card.id);
         if (ptsEl) ptsEl.textContent = pts;
 
+        // Show change badge on card row if this card has a suit/copy override
+        const row = document.getElementById('cardRow-' + card.id);
+        if (row) {
+            // Remove existing badge if any
+            const oldBadge = row.querySelector('.card-change-badge');
+            if (oldBadge) oldBadge.remove();
+
+            const override = result.suitOverrides && result.suitOverrides[card.id];
+            if (override) {
+                const badge = document.createElement('span');
+                badge.className = 'card-change-badge';
+                badge.textContent = override;
+                const nameEl = row.querySelector('.card-name');
+                if (nameEl) {
+                    nameEl.after(badge);
+                }
+
+                // For copyCard: update the name to show what's being copied
+                if (result.copyCards) {
+                    const match = result.copyCards.find(cc => cc.cardId === card.id);
+                    if (match) {
+                        const target = getCard(match.targetId);
+                        if (target) {
+                            const nameEl = row.querySelector('.card-name');
+                            if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → .*$/, '') + ' → ' + target.name.en;
+                        }
+                    }
+                }
+            }
+        }
+
         // Accumulate suit score (only if card is in hand)
         const player = state.players[state.currentPlayer];
         if (player && player.hand.includes(card.id)) {
@@ -786,25 +870,37 @@ function updateAllScores() {
     // Update summary
     document.getElementById('totalPoints').textContent = result.total;
 
-    // Show suit change info if applicable
+    // Show suit/card change info if applicable
     const changeInfo = document.getElementById('changeSuitInfo');
     if (changeInfo) {
+        const changes = [];
+
         if (result.changeSuit) {
             const target = getCard(result.changeSuit.targetId);
             const name = target ? target.name.en : result.changeSuit.targetId;
-            changeInfo.textContent = `♻ ${name}: ${result.changeSuit.from} → ${result.changeSuit.to}`;
-            changeInfo.style.display = 'block';
-        } else if (result.copySuit) {
-            const copier = getCard(result.copySuit.cardId);
-            const name = copier ? copier.name.en : result.copySuit.cardId;
-            changeInfo.textContent = `♻ ${name}: ${result.copySuit.from} → ${result.copySuit.to}`;
-            changeInfo.style.display = 'block';
-        } else if (result.copyCard) {
-            const copier = getCard(result.copyCard.cardId);
-            const target = getCard(result.copyCard.targetId);
-            const cName = copier ? copier.name.en : result.copyCard.cardId;
-            const tName = target ? target.name.en : result.copyCard.targetId;
-            changeInfo.textContent = `↻ ${cName} → ${tName} (${result.copyCard.to}, ${result.copyCard.points}pts)`;
+            changes.push(`♻ ${name}: ${result.changeSuit.from} → ${result.changeSuit.to}`);
+        }
+
+        if (result.copySuits) {
+            result.copySuits.forEach(cs => {
+                const copier = getCard(cs.cardId);
+                const name = copier ? copier.name.en : cs.cardId;
+                changes.push(`♻ ${name}: ${cs.from} → ${cs.to}`);
+            });
+        }
+
+        if (result.copyCards) {
+            result.copyCards.forEach(cc => {
+                const copier = getCard(cc.cardId);
+                const target = getCard(cc.targetId);
+                const cName = copier ? copier.name.en : cc.cardId;
+                const tName = target ? target.name.en : cc.targetId;
+                changes.push(`↻ ${cName} → ${tName} (${cc.to}, ${cc.points}pts)`);
+            });
+        }
+
+        if (changes.length > 0) {
+            changeInfo.innerHTML = changes.map(c => `<div>${c}</div>`).join('');
             changeInfo.style.display = 'block';
         } else {
             changeInfo.style.display = 'none';
