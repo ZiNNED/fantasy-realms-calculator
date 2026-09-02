@@ -3,7 +3,7 @@
 // ============================================
 
 // ===== Suit Definitions =====
-const SUIT_ORDER = ['army', 'artifact', 'beast', 'flame', 'flood', 'land', 'leader', 'weather', 'weapon', 'wild', 'wizard'];
+const SUIT_ORDER = ['army', 'artifact', 'beast', 'flame', 'flood', 'land', 'leader', 'weapon', 'weather', 'wild', 'wizard'];
 const SUIT_LABELS = {
     wizard: 'Wizards',
     leader: 'Leaders',
