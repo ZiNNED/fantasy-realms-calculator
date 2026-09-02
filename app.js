@@ -246,13 +246,21 @@ function scoreCards(cards) {
                         if (matchesSuit || matchesIds) return;
                         blanked.add(candidate.id);
                     });
-                } else if (rule.of.suits) {
-                    cards.forEach(candidate => {
-                        if (rule.of.suits.includes(candidate.suit)) {
-                            if (rule.of.except && rule.of.except.includes(candidate.id)) return;
-                            blanked.add(candidate.id);
-                        }
-                    });
+                } else {
+                    // Collect candidate suits from rule.of.suit (single) or rule.of.suits (array)
+                    let targetSuits = [];
+                    if (rule.of.suits) targetSuits = rule.of.suits;
+                    else if (rule.of.suit) targetSuits = [rule.of.suit];
+
+                    if (targetSuits.length > 0) {
+                        cards.forEach(candidate => {
+                            if (rule.of.other && candidate.id === card.id) return;
+                            if (targetSuits.includes(candidate.suit)) {
+                                if (rule.of.except && rule.of.except.includes(candidate.id)) return;
+                                blanked.add(candidate.id);
+                            }
+                        });
+                    }
                 }
             }
         });

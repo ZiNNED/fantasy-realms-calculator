@@ -31,6 +31,7 @@
 //         { points: -10, per: 'each', of: { suit: 'leader', other: true } },
 //         // Blank effects: removes all bonuses, penalties and base points from cards
 //         { type: 'blanks', of: { suits: ['army'] } },
+//         { type: 'blanks', of: { suit: 'beast', other: true } },   // singular suit, optional other:true
 //         // allExcept mode: blanks everything EXCEPT the listed suits and IDs
 //         { type: 'blanks', mode: 'allExcept', of: { suits: ['flame', 'wizard', 'weather', 'weapon', 'artifact'], ids: ['mountain', 'greatFlood', 'island', 'unicorn', 'dragon'] } },
 //         { type: 'blanks', of: { suits: ['land'], except: ['mountain'] } },
@@ -700,5 +701,82 @@ const CARDS = [
         penalty: [
             { points: -5, per: 'each', of: { suit: 'leader', other: true } },
         ],
+    },
+
+    // ===== Beasts =====
+    {
+        id: 'phoenix',
+        name: { en: 'Phoenix' },
+        set: 'promo',
+        suit: 'beast',
+        points: 14,
+        bonus: { mode: 'sum', rules: [
+            { type: 'extraSuits', suits: ['flame', 'weather'] },
+        ] },
+        penalty: [
+            { type: 'selfBlank', of: { suit: 'flood' }, when: 'present' },
+            { type: 'partialBlank' },
+        ],
+    },
+    {
+        id: 'dragon',
+        name: { en: 'Dragon' },
+        set: 'base',
+        suit: 'beast',
+        points: 30,
+        bonus: {},
+        penalty: [
+            { points: -40, per: 'flatIfNone', of: { suit: 'wizard' } },
+        ],
+    },
+    {
+        id: 'warhorse',
+        name: { en: 'Warhorse' },
+        set: 'base',
+        suit: 'beast',
+        points: 6,
+        bonus: { mode: 'best', rules: [
+            { points: 14, per: 'flat', of: { suit: 'leader' } },
+            { points: 14, per: 'flat', of: { suit: 'wizard' } },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'basilisk',
+        name: { en: 'Basilisk' },
+        set: 'base',
+        suit: 'beast',
+        points: 35,
+        bonus: {},
+        penalty: [
+            { type: 'blanks', of: { suit: 'army' } },
+            { type: 'blanks', of: { suit: 'leader' } },
+            { type: 'blanks', of: { suit: 'beast', other: true } },
+        ],
+    },
+    {
+        id: 'unicorn',
+        name: { en: 'Unicorn' },
+        set: 'base',
+        suit: 'beast',
+        points: 9,
+        bonus: { mode: 'best', rules: [
+            { points: 30, per: 'flat', of: { id: 'princess' } },
+            { points: 15, per: 'flat', of: { id: 'empress' } },
+            { points: 15, per: 'flat', of: { id: 'queen' } },
+            { points: 15, per: 'flat', of: { id: 'enchantress' } },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'hydra',
+        name: { en: 'Hydra' },
+        set: 'base',
+        suit: 'beast',
+        points: 12,
+        bonus: { mode: 'sum', rules: [
+            { points: 28, per: 'flat', of: { id: 'swamp' } },
+        ] },
+        penalty: [],
     },
 ];
