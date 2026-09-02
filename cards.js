@@ -22,12 +22,16 @@
 //             { type: 'clearsTarget', suit: 'army', on: { suit: 'flood' } },
 //             // Suit change: auto-optimises changing one other card's suit (brute-force)
 //             { type: 'changeSuit' },
-//             // Copy suit: this card's own suit becomes the most profitable candidate suit
-//             //   (does NOT take the duplicated card's bonus/penalty/base points)
+//             // Copy suit: this card's own suit becomes the most profitable
+//             //             from the available options (brute-force)
 //             { type: 'copySuit', of: { suits: ['army', 'land', 'weather', 'flood', 'flame'] } },
-//             // Copy card: this card duplicates name, suit, points, penalty of another card (but NOT bonus)
-//             //   Auto-optimises. Optional of: { suits: [...] } restricts which targets are eligible.
-//             { type: 'copyCard', of: { suits: ['artifact', 'leader', 'wizard', 'weapon', 'beast'] } },
+//             // Copy name+suit: this card's name AND suit become those of the most
+//             //             profitable other card (matching allowed suits). Does NOT
+//             //             copy points, penalty, or bonus. (Mirage / Shapeshifter)
+//             { type: 'copyNameSuit', of: { suits: ['army', 'land', 'weather', 'flood', 'flame'] } },
+//             // Copy card: duplicates name, suit, points, penalty of another card
+//             //           (but NOT bonus). Unrestricted or filtered by suit. (Doppelgänger)
+//             { type: 'copyCard' },
 //             // Extra suits: card also counts as these suits for matching purposes
 //             { type: 'extraSuits', suits: ['flame', 'weather'] },
 //         ]
@@ -794,7 +798,7 @@ const CARDS = [
         suit: 'wild',
         points: 0,
         bonus: { mode: 'sum', rules: [
-            { type: 'copySuit', of: { suits: ['army', 'land', 'weather', 'flood', 'flame'] } },
+            { type: 'copyNameSuit', of: { suits: ['army', 'land', 'weather', 'flood', 'flame'] } },
         ] },
         penalty: [],
     },
@@ -805,7 +809,7 @@ const CARDS = [
         suit: 'wild',
         points: 0,
         bonus: { mode: 'sum', rules: [
-            { type: 'copySuit', of: { suits: ['artifact', 'leader', 'wizard', 'weapon', 'beast'] } },
+            { type: 'copyNameSuit', of: { suits: ['artifact', 'leader', 'wizard', 'weapon', 'beast'] } },
         ] },
         penalty: [],
     },

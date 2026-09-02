@@ -481,7 +481,7 @@ function scoreCards(cards) {
                             if (new Set(suits).size !== suits.length) rulePoints = 0;
                         }
                     } else if (rule.condition && rule.condition.type === 'hasCard') {
-                        const hasIt = activeHand.some(c => c.id === rule.condition.id);
+                        const hasIt = activeHand.some(c => c.id === rule.condition.id || c.name?.en?.toLowerCase() === rule.condition.id);
                         if (!hasIt) rulePoints = 0;
                     }
                 }
@@ -552,7 +552,12 @@ function calculateScore(playerIdx) {
         (c.bonus && c.bonus.rules || []).some(r => r.type === 'copyCard')
     );
 
-    if (changeSuitCards.length > 0 || copySuitCards.length > 0 || copyCardCards.length > 0) {
+    // Check if any card has a copy-name-suit bonus (duplicate name and suit only — no points/penalty)
+    const copyNameSuitCards = hand.filter(c =>
+        (c.bonus && c.bonus.rules || []).some(r => r.type === 'copyNameSuit')
+    );
+
+    if (changeSuitCards.length > 0 || copySuitCards.length > 0 || copyCardCards.length > 0 || copyNameSuitCards.length > 0) {
         let bestResult = null;
         let bestScore = -Infinity;
         const allOverrides = {};
@@ -644,6 +649,39 @@ function calculateScore(playerIdx) {
             }
         }
 
+        // Handle copyNameSuit — independently optimize each copier (name + suit only, no points/penalty)
+        // Searches the full card pool, not just the hand — the copier can take any card's name/suit
+        const copyNameSuits = [];
+        for (const copier of copyNameSuitCards) {
+            const copyRule = (copier.bonus && copier.bonus.rules || []).find(r => r.type === 'copyNameSuit');
+            const allowedSuits = (copyRule && copyRule.of && copyRule.of.suits) || SUITS;
+            let bestTarget = null;
+            let bestCopyScore = -Infinity;
+
+            for (const target of CARDS) {
+                if (target.id === copier.id) continue;
+                if (allowedSuits && !allowedSuits.includes(target.suit)) continue;
+                const trialHand = hand.map(c =>
+                    c.id === copier.id ? {
+                        ...c,
+                        name: { en: target.name?.en || target.id },
+                        suit: target.suit,
+                    } :
+                    allOverrides[c.id] ? { ...c, suit: allOverrides[c.id] } : c
+                );
+                const result = scoreCards(trialHand);
+                if (result.total > bestCopyScore) {
+                    bestCopyScore = result.total;
+                    bestTarget = target;
+                }
+            }
+
+            if (bestTarget && bestTarget.id !== copier.id) {
+                copyNameSuits.push({ cardId: copier.id, targetId: bestTarget.id, from: copier.suit, to: bestTarget.suit });
+                allOverrides[copier.id] = bestTarget.suit;
+            }
+        }
+
         // Score the final hand with all overrides applied
         const finalHand = hand.map(c =>
             allOverrides[c.id] ? { ...c, suit: allOverrides[c.id] } : c
@@ -667,10 +705,25 @@ function calculateScore(playerIdx) {
             }
         }
 
+        // If we have copyNameSuits, apply name + suit transformation
+        for (const ns of copyNameSuits) {
+            const target = getCard(ns.targetId);
+            if (target) {
+                fullyTransformedHand = fullyTransformedHand.map(c =>
+                    c.id === ns.cardId ? {
+                        ...c,
+                        name: { en: target.name?.en || target.id },
+                        suit: target.suit,
+                    } : c
+                );
+            }
+        }
+
         const finalResult = scoreCards(fullyTransformedHand);
         finalResult.suitOverrides = allOverrides;
         if (copySuits.length > 0) finalResult.copySuits = copySuits;
         if (copyCards.length > 0) finalResult.copyCards = copyCards;
+        if (copyNameSuits.length > 0) finalResult.copyNameSuits = copyNameSuits;
         if (bestResult && bestResult.changeSuit) {
             finalResult.changeSuit = bestResult.changeSuit;
         }
@@ -850,6 +903,18 @@ function updateAllScores() {
                         }
                     }
                 }
+
+                // For copyNameSuit: update name to show target
+                if (result.copyNameSuits) {
+                    const match = result.copyNameSuits.find(ns => ns.cardId === card.id);
+                    if (match) {
+                        const target = getCard(match.targetId);
+                        if (target) {
+                            const nameEl = row.querySelector('.card-name');
+                            if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → .*$/, '') + ' → ' + target.name.en;
+                        }
+                    }
+                }
             }
         }
 
@@ -896,6 +961,16 @@ function updateAllScores() {
                 const cName = copier ? copier.name.en : cc.cardId;
                 const tName = target ? target.name.en : cc.targetId;
                 changes.push(`↻ ${cName} → ${tName} (${cc.to}, ${cc.points}pts)`);
+            });
+        }
+
+        if (result.copyNameSuits) {
+            result.copyNameSuits.forEach(ns => {
+                const copier = getCard(ns.cardId);
+                const target = getCard(ns.targetId);
+                const cName = copier ? copier.name.en : ns.cardId;
+                const tName = target ? target.name.en : ns.targetId;
+                changes.push(`♻ ${cName} → ${tName} (${ns.to})`);
             });
         }
 
