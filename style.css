@@ -414,6 +414,21 @@ html, body {
     flex-shrink: 0;
 }
 
+.card-blanked-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(220, 38, 38, 0.15);
+    color: #ef4444;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.card-blanked-badge.zeroed {
+    background: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+}
+
 .card-score {
     font-size: 0.85rem;
     font-weight: 600;

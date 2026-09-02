@@ -530,7 +530,7 @@ function scoreCards(cards) {
 
     blanked.forEach(cid => { cardScores[cid] = 0; });
 
-    return { total, cardScores };
+    return { total, cardScores, blanked: [...blanked], zeroedPoints: [...zeroedPoints] };
 }
 
 function calculateScore(playerIdx) {
@@ -878,9 +878,11 @@ function updateAllScores() {
         // Show change badge on card row if this card has a suit/copy override
         const row = document.getElementById('cardRow-' + card.id);
         if (row) {
-            // Remove existing badge if any
+            // Remove existing badges
             const oldBadge = row.querySelector('.card-change-badge');
             if (oldBadge) oldBadge.remove();
+            const oldBlankBadge = row.querySelector('.card-blanked-badge');
+            if (oldBlankBadge) oldBlankBadge.remove();
 
             const override = result.suitOverrides && result.suitOverrides[card.id];
             if (override) {
@@ -915,6 +917,21 @@ function updateAllScores() {
                         }
                     }
                 }
+            }
+
+            // Show blanked/zeroed badge if this card is blanked
+            if (result.blanked && result.blanked.includes(card.id)) {
+                const blankBadge = document.createElement('span');
+                blankBadge.className = 'card-blanked-badge';
+                blankBadge.textContent = 'BLANKED';
+                const nameEl = row.querySelector('.card-name');
+                if (nameEl) nameEl.after(blankBadge);
+            } else if (result.zeroedPoints && result.zeroedPoints.includes(card.id)) {
+                const zeroBadge = document.createElement('span');
+                zeroBadge.className = 'card-blanked-badge zeroed';
+                zeroBadge.textContent = '0 BASE';
+                const nameEl = row.querySelector('.card-name');
+                if (nameEl) nameEl.after(zeroBadge);
             }
         }
 
