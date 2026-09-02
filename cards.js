@@ -704,7 +704,7 @@ const CARDS = [
         name: { en: 'Empress' },
         set: 'base',
         suit: 'leader',
-        points: 4,
+        points: 15,
         bonus: { mode: 'sum', rules: [
             { points: 10, per: 'each', of: { suit: 'army' } },
         ] },
