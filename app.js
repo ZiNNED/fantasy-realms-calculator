@@ -18,17 +18,17 @@ const SUIT_LABELS = {
     wild: 'Wild',
 };
 const SUIT_COLORS = {
-    wizard: '#7c3aed',
-    leader: '#e67e22',
-    beast: '#10b981',
-    land: '#22a6b3',
-    weather: '#3498db',
-    flood: '#2980b9',
-    flame: '#e74c3c',
-    weapon: '#e84393',
-    army: '#6c5ce7',
-    artifact: '#fdcb6e',
-    wild: '#00b894',
+    wizard: '#E75594',
+    flood: '#4D4775',
+    army: '#524239',
+    weather: '#9DC6EF',
+    land: '#633E28',
+    flame: '#C54F3F',
+    weapon: '#918A7D',
+    artifact: '#F8743E',
+    leader: '#82529B',
+    beast: '#60A362',
+    wild: '#D4D4D3',
 };
 
 // ===== Player Colors =====
