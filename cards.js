@@ -785,4 +785,39 @@ const CARDS = [
         ] },
         penalty: [],
     },
+
+    // ===== Wild =====
+    {
+        id: 'mirage',
+        name: { en: 'Mirage' },
+        set: 'base',
+        suit: 'wild',
+        points: 0,
+        bonus: { mode: 'sum', rules: [
+            { type: 'copySuit', of: { suits: ['army', 'land', 'weather', 'flood', 'flame'] } },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'shapeshifter',
+        name: { en: 'Shapeshifter' },
+        set: 'base',
+        suit: 'wild',
+        points: 0,
+        bonus: { mode: 'sum', rules: [
+            { type: 'copySuit', of: { suits: ['artifact', 'leader', 'wizard', 'weapon', 'beast'] } },
+        ] },
+        penalty: [],
+    },
+    {
+        id: 'doppelganger',
+        name: { en: 'Doppelgänger' },
+        set: 'base',
+        suit: 'wild',
+        points: 0,
+        bonus: { mode: 'best', rules: [
+            { type: 'copyCard' },
+        ] },
+        penalty: [],
+    },
 ];
