@@ -693,11 +693,6 @@ function buildCardSections() {
         const summary = document.createElement('summary');
         summary.className = 'suit-summary';
 
-        const icon = document.createElement('span');
-        icon.className = 'suit-icon';
-        icon.style.background = suitColor;
-        summary.appendChild(icon);
-
         const label = document.createElement('span');
         label.className = 'suit-label';
         label.textContent = SUIT_LABELS[suit] || suit.toUpperCase();
@@ -728,6 +723,8 @@ function buildCardSections() {
             } else if (fullHand) {
                 row.classList.add('disabled');
             }
+            row.style.background = suitColor;
+            row.style.color = '#fff';
 
             // Indicator (empty circle or check)
             const indicator = document.createElement('span');
