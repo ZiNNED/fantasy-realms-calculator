@@ -375,226 +375,215 @@ function scoreCards(cards) {
         });
     });
 
-    // ===== Phase 4b: clearsBest from active cards only =====
-    activeHand.forEach(card => {
-        const bonusRules = (card.bonus && card.bonus.rules) || [];
-        bonusRules.forEach(rule => {
-            if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
-                let bestCard = null;
-                let bestPenalty = 0;
-                activeHand.forEach(candidate => {
-                    if (!rule.of.suits.includes(candidate.suit)) return;
-                    let totalNeg = 0;
-                    (candidate.penalty || []).forEach(pr => {
-                        if (pr.type) return;
-                        if (pr.points >= 0) return;
-                        if (penaltyTargetsCleared(pr, activeClearedTargets, candidate.suit)) return;
-                        const resolvedFilter = { ...pr.of };
-                        if (resolvedFilter.suit === 'same') resolvedFilter.suit = candidate.suit;
-                        let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                        if (resolvedFilter.other && matchesFilter(candidate, resolvedFilter)) count--;
-                        if (pr.per === 'each') {
-                            totalNeg += Math.max(0, count) * Math.abs(pr.points);
-                        } else if (pr.per === 'flat' || pr.per === 'threshold') {
-                            if (count >= (pr.min || 1)) totalNeg += Math.abs(pr.points);
-                        } else if (pr.per === 'tiered' && pr.tiers) {
-                            for (const tier of pr.tiers) {
-                                if (count >= tier.min) { totalNeg += Math.abs(tier.points); break; }
-                            }
+    // ===== Phase 4b: clearsBest brute-force =====
+        // Try each possible target, compute full score, and pick the one that gives the highest total
+        const effectivePoints = {};
+        activeHand.forEach(c => { effectivePoints[c.id] = zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
+
+        activeHand.forEach(card => {
+            const bonusRules = (card.bonus && card.bonus.rules) || [];
+            bonusRules.forEach(rule => {
+                if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
+                    const candidates = activeHand.filter(c => rule.of.suits.includes(c.suit));
+                    let bestTotal = -Infinity;
+                    let bestCard = null;
+                    candidates.forEach(candidate => {
+                        const testCleared = new Set([...activeClearedCards, candidate.id]);
+                        const result = computeScore(activeHand, effectivePoints, activeClearedSuits, testCleared, activeClearedTargets, _extraSuitsMap);
+                        if (result.total > bestTotal) {
+                            bestTotal = result.total;
+                            bestCard = candidate;
                         }
                     });
-                    if (totalNeg > bestPenalty) {
-                        bestPenalty = totalNeg;
-                        bestCard = candidate;
+                    if (bestCard) activeClearedCards.add(bestCard.id);
+                }
+            });
+        });
+
+        // ===== Phase 5: Score active cards =====
+        const finalResult = computeScore(activeHand, effectivePoints, activeClearedSuits, activeClearedCards, activeClearedTargets, _extraSuitsMap);
+        let { total, cardScores, cardBase, cardNetBonus } = finalResult;
+
+        blanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
+
+        return { total, cardScores, cardBase, cardNetBonus, blanked: [...blanked], zeroedPoints: [...zeroedPoints] };
+    }
+
+    function computeScore(activeHand, effectivePoints, clearedSuits, clearedCards, clearedTargets, extraSuitsMap) {
+        let total = 0;
+        const cardScores = {};
+        const cardBase = {};
+        const cardNetBonus = {};
+
+        activeHand.forEach(card => {
+            let cardScore = effectivePoints[card.id];
+            cardBase[card.id] = effectivePoints[card.id];
+            const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
+
+            // ----- Bonuses -----
+            const bonusObj = card.bonus || {};
+            const bonusRules = bonusObj.rules || [];
+            const bonusMode = bonusObj.mode || 'sum';
+
+            if (bonusRules.length > 0) {
+                const bonusPointsList = [];
+
+                bonusRules.forEach(rule => {
+                    if (rule.type) return;
+
+                    const resolvedFilter = { ...rule.of };
+                    if (resolvedFilter.suit === 'same') {
+                        resolvedFilter.suit = card.suit;
+                    }
+
+                    let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                    if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+
+                    let rulePoints = 0;
+
+                    if (rule.per === 'flat') {
+                        if (resolvedFilter.all) {
+                            const allMatch = activeHand.every(c => matchesFilter(c, resolvedFilter));
+                            if (allMatch && (!resolvedFilter.other || activeHand.length > 0)) {
+                                rulePoints = rule.points;
+                            }
+                        } else if (resolvedFilter.other) {
+                            if (count > 0) rulePoints = rule.points;
+                        } else {
+                            if (count > 0) rulePoints = rule.points;
+                        }
+                    } else if (rule.per === 'flatAllIds') {
+                        let allMet = true;
+                        if (resolvedFilter.ids && Array.isArray(resolvedFilter.ids)) {
+                            const handIds = activeHand.map(c => c.id);
+                            if (!resolvedFilter.ids.every(id => handIds.includes(id))) allMet = false;
+                        }
+                        if (resolvedFilter.suits && Array.isArray(resolvedFilter.suits)) {
+                            const handSuits = new Set();
+                            activeHand.forEach(c => {
+                                handSuits.add(c.suit);
+                                if (extraSuitsMap && extraSuitsMap[c.id]) {
+                                    extraSuitsMap[c.id].forEach(s => handSuits.add(s));
+                                }
+                            });
+                            if (!resolvedFilter.suits.every(s => handSuits.has(s))) allMet = false;
+                        }
+                        if (resolvedFilter.suit) {
+                            const hasSuit = activeHand.some(c => {
+                                if (c.suit === resolvedFilter.suit) return true;
+                                if (extraSuitsMap && extraSuitsMap[c.id] && extraSuitsMap[c.id].includes(resolvedFilter.suit)) return true;
+                                return false;
+                            });
+                            if (!hasSuit) allMet = false;
+                        }
+                        if (allMet) rulePoints = rule.points;
+                    } else if (rule.per === 'flatIfNone') {
+                        if (count === 0) rulePoints = rule.points;
+                    } else if (rule.per === 'each') {
+                        rulePoints = Math.max(0, count) * rule.points;
+                    } else if (rule.per === 'threshold') {
+                        if (count >= (rule.min || 1)) rulePoints = rule.points;
+                    } else if (rule.per === 'tiered') {
+                        if (rule.tiers) {
+                            for (const tier of rule.tiers) {
+                                if (count >= tier.min) { rulePoints = tier.points; break; }
+                            }
+                        }
+                    } else if (rule.per === 'manyOf') {
+                        const suitCounts = {};
+                        activeHand.forEach(c => {
+                            const counted = new Set();
+                            if (!counted.has(c.suit)) { suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1; counted.add(c.suit); }
+                            if (extraSuitsMap && extraSuitsMap[c.id]) {
+                                extraSuitsMap[c.id].forEach(s => {
+                                    if (!counted.has(s)) { suitCounts[s] = (suitCounts[s] || 0) + 1; counted.add(s); }
+                                });
+                            }
+                        });
+                        const min = rule.min || 1;
+                        rulePoints = Object.values(suitCounts).filter(cnt => cnt >= min).length * (rule.points || 0);
+                    } else if (rule.per === 'runs') {
+                        const uniquePoints = [...new Set(activeHand.map(c => effectivePoints[c.id]))].sort((a, b) => a - b);
+                        const tiers = (rule.tiers || []).sort((a, b) => b.min - a.min);
+                        let runLen = 0;
+                        for (let i = 0; i < uniquePoints.length; i++) {
+                            if (i > 0 && uniquePoints[i] === uniquePoints[i - 1] + 1) { runLen++; } else { runLen = 1; }
+                            const nextExists = i + 1 < uniquePoints.length && uniquePoints[i + 1] === uniquePoints[i] + 1;
+                            if (!nextExists && runLen >= 3) {
+                                for (const tier of tiers) { if (runLen >= tier.min) { rulePoints += tier.points; break; } }
+                            }
+                        }
+                    } else if (rule.per === 'baseBest') {
+                        const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
+                        if (matching.length > 0) {
+                            rulePoints = Math.max(...matching.map(c => effectivePoints[c.id]));
+                        }
+                    } else if (rule.per === 'baseSum') {
+                        let matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
+                        if (resolvedFilter.other) {
+                            matching = matching.filter(c => c.id !== card.id);
+                        }
+                        rulePoints = matching.reduce((sum, c) => sum + effectivePoints[c.id], 0);
+                    }
+
+                    // ----- Condition check (if the rule has a condition, validate it) -----
+                    if (rulePoints > 0 && rule.condition) {
+                        if (typeof rule.condition === 'string') {
+                            if (rule.condition === 'allDifferentSuits') {
+                                const suits = activeHand.map(c => c.suit);
+                                if (new Set(suits).size !== suits.length) rulePoints = 0;
+                            }
+                        } else if (rule.condition && rule.condition.type === 'hasCard') {
+                            const hasIt = activeHand.some(c => c.id === rule.condition.id || c.name?.en?.toLowerCase() === rule.condition.id);
+                            if (!hasIt) rulePoints = 0;
+                        }
+                    }
+
+                    bonusPointsList.push(rulePoints);
+                });
+
+                if (bonusMode === 'best') {
+                    cardScore += Math.max(...bonusPointsList);
+                } else {
+                    bonusPointsList.forEach(rp => { cardScore += rp; });
+                }
+            }
+
+            // ----- Penalties -----
+            if (card.penalty && !isCleared) {
+                card.penalty.forEach(rule => {
+                    if (rule.type) return;
+                    if (penaltyTargetsCleared(rule, clearedTargets, card.suit)) return;
+
+                    const resolvedFilter = { ...rule.of };
+                    if (resolvedFilter.suit === 'same') {
+                        resolvedFilter.suit = card.suit;
+                    }
+
+                    let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                    if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+
+                    if (rule.per === 'each') {
+                        cardScore += Math.max(0, count) * rule.points;
+                    } else if (rule.per === 'flat' || rule.per === 'threshold') {
+                        if (count >= (rule.min || 1)) cardScore += rule.points;
+                    } else if (rule.per === 'flatIfNone') {
+                        if (count === 0) cardScore += rule.points;
+                    } else if (rule.per === 'tiered' && rule.tiers) {
+                        for (const tier of rule.tiers) {
+                            if (count >= tier.min) { cardScore += tier.points; break; }
+                        }
                     }
                 });
-                if (bestCard) activeClearedCards.add(bestCard.id);
             }
+
+            total += cardScore;
+            cardScores[card.id] = cardScore;
+            cardNetBonus[card.id] = cardScore - cardBase[card.id];
         });
-    });
 
-    // ===== Phase 5: Score active cards =====
-    let total = 0;
-    const cardScores = {};
-    const cardBase = {};
-    const cardNetBonus = {};
-
-    // Build effective base points (zeroedPoints cards → 0 for baseBest/baseSum/runs)
-    const effectivePoints = {};
-    activeHand.forEach(c => { effectivePoints[c.id] = zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
-
-    activeHand.forEach(card => {
-        let cardScore = effectivePoints[card.id];
-        cardBase[card.id] = effectivePoints[card.id];
-        const isCleared = activeClearedSuits.has(card.suit) || activeClearedCards.has(card.id);
-
-        // ----- Bonuses -----
-        const bonusObj = card.bonus || {};
-        const bonusRules = bonusObj.rules || [];
-        const bonusMode = bonusObj.mode || 'sum';
-
-        if (bonusRules.length > 0) {
-            const bonusPointsList = [];
-
-            bonusRules.forEach(rule => {
-                if (rule.type) return;
-
-                const resolvedFilter = { ...rule.of };
-                if (resolvedFilter.suit === 'same') {
-                    resolvedFilter.suit = card.suit;
-                }
-
-                let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
-
-                let rulePoints = 0;
-
-                if (rule.per === 'flat') {
-                    if (resolvedFilter.all) {
-                        const allMatch = activeHand.every(c => matchesFilter(c, resolvedFilter));
-                        if (allMatch && (!resolvedFilter.other || activeHand.length > 0)) {
-                            rulePoints = rule.points;
-                        }
-                    } else if (resolvedFilter.other) {
-                        if (count > 0) rulePoints = rule.points;
-                    } else {
-                        if (count > 0) rulePoints = rule.points;
-                    }
-                } else if (rule.per === 'flatAllIds') {
-                    let allMet = true;
-                    if (resolvedFilter.ids && Array.isArray(resolvedFilter.ids)) {
-                        const handIds = activeHand.map(c => c.id);
-                        if (!resolvedFilter.ids.every(id => handIds.includes(id))) allMet = false;
-                    }
-                    if (resolvedFilter.suits && Array.isArray(resolvedFilter.suits)) {
-                        const handSuits = new Set();
-                        activeHand.forEach(c => {
-                            handSuits.add(c.suit);
-                            if (_extraSuitsMap && _extraSuitsMap[c.id]) {
-                                _extraSuitsMap[c.id].forEach(s => handSuits.add(s));
-                            }
-                        });
-                        if (!resolvedFilter.suits.every(s => handSuits.has(s))) allMet = false;
-                    }
-                    if (resolvedFilter.suit) {
-                        const hasSuit = activeHand.some(c => {
-                            if (c.suit === resolvedFilter.suit) return true;
-                            if (_extraSuitsMap && _extraSuitsMap[c.id] && _extraSuitsMap[c.id].includes(resolvedFilter.suit)) return true;
-                            return false;
-                        });
-                        if (!hasSuit) allMet = false;
-                    }
-                    if (allMet) rulePoints = rule.points;
-                } else if (rule.per === 'flatIfNone') {
-                    if (count === 0) rulePoints = rule.points;
-                } else if (rule.per === 'each') {
-                    rulePoints = Math.max(0, count) * rule.points;
-                } else if (rule.per === 'threshold') {
-                    if (count >= (rule.min || 1)) rulePoints = rule.points;
-                } else if (rule.per === 'tiered') {
-                    if (rule.tiers) {
-                        for (const tier of rule.tiers) {
-                            if (count >= tier.min) { rulePoints = tier.points; break; }
-                        }
-                    }
-                } else if (rule.per === 'manyOf') {
-                    const suitCounts = {};
-                    activeHand.forEach(c => {
-                        // Count by native AND extra suits
-                        const counted = new Set();
-                        if (!counted.has(c.suit)) { suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1; counted.add(c.suit); }
-                        if (_extraSuitsMap && _extraSuitsMap[c.id]) {
-                            _extraSuitsMap[c.id].forEach(s => {
-                                if (!counted.has(s)) { suitCounts[s] = (suitCounts[s] || 0) + 1; counted.add(s); }
-                            });
-                        }
-                    });
-                    const min = rule.min || 1;
-                    rulePoints = Object.values(suitCounts).filter(cnt => cnt >= min).length * (rule.points || 0);
-                } else if (rule.per === 'runs') {
-                    const uniquePoints = [...new Set(activeHand.map(c => effectivePoints[c.id]))].sort((a, b) => a - b);
-                    const tiers = (rule.tiers || []).sort((a, b) => b.min - a.min);
-                    let runLen = 0;
-                    for (let i = 0; i < uniquePoints.length; i++) {
-                        if (i > 0 && uniquePoints[i] === uniquePoints[i - 1] + 1) { runLen++; } else { runLen = 1; }
-                        const nextExists = i + 1 < uniquePoints.length && uniquePoints[i + 1] === uniquePoints[i] + 1;
-                        if (!nextExists && runLen >= 3) {
-                            for (const tier of tiers) { if (runLen >= tier.min) { rulePoints += tier.points; break; } }
-                        }
-                    }
-                } else if (rule.per === 'baseBest') {
-                    const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
-                    if (matching.length > 0) {
-                        rulePoints = Math.max(...matching.map(c => effectivePoints[c.id]));
-                    }
-                } else if (rule.per === 'baseSum') {
-                    let matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
-                    if (resolvedFilter.other) {
-                        matching = matching.filter(c => c.id !== card.id);
-                    }
-                    rulePoints = matching.reduce((sum, c) => sum + effectivePoints[c.id], 0);
-                }
-
-                // ----- Condition check (if the rule has a condition, validate it) -----
-                if (rulePoints > 0 && rule.condition) {
-                    if (typeof rule.condition === 'string') {
-                        if (rule.condition === 'allDifferentSuits') {
-                            const suits = activeHand.map(c => c.suit);
-                            if (new Set(suits).size !== suits.length) rulePoints = 0;
-                        }
-                    } else if (rule.condition && rule.condition.type === 'hasCard') {
-                        const hasIt = activeHand.some(c => c.id === rule.condition.id || c.name?.en?.toLowerCase() === rule.condition.id);
-                        if (!hasIt) rulePoints = 0;
-                    }
-                }
-
-                bonusPointsList.push(rulePoints);
-            });
-
-            if (bonusMode === 'best') {
-                cardScore += Math.max(...bonusPointsList);
-            } else {
-                bonusPointsList.forEach(rp => { cardScore += rp; });
-            }
-        }
-
-        // ----- Penalties -----
-        if (card.penalty && !isCleared) {
-            card.penalty.forEach(rule => {
-                if (rule.type) return;
-                if (penaltyTargetsCleared(rule, activeClearedTargets, card.suit)) return;
-
-                const resolvedFilter = { ...rule.of };
-                if (resolvedFilter.suit === 'same') {
-                    resolvedFilter.suit = card.suit;
-                }
-
-                let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
-
-                if (rule.per === 'each') {
-                    cardScore += Math.max(0, count) * rule.points;
-                } else if (rule.per === 'flat' || rule.per === 'threshold') {
-                    if (count >= (rule.min || 1)) cardScore += rule.points;
-                } else if (rule.per === 'flatIfNone') {
-                    if (count === 0) cardScore += rule.points;
-                } else if (rule.per === 'tiered' && rule.tiers) {
-                    for (const tier of rule.tiers) {
-                        if (count >= tier.min) { cardScore += tier.points; break; }
-                    }
-                }
-            });
-        }
-
-        total += cardScore;
-        cardScores[card.id] = cardScore;
-        cardNetBonus[card.id] = cardScore - cardBase[card.id];
-    });
-
-    blanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
-
-    return { total, cardScores, cardBase, cardNetBonus, blanked: [...blanked], zeroedPoints: [...zeroedPoints] };
-}
+        return { total, cardScores, cardBase, cardNetBonus };
+    }
 
 function calculateScore(playerIdx) {
     const hand = state.players[playerIdx].hand.map(id => getCard(id)).filter(Boolean);
@@ -1218,8 +1207,12 @@ function saveSettings() {
 // ===== New Game =====
 function newGame() {
     if (!confirm(t('confirmNewGame'))) return;
-    state.players.forEach(p => { p.hand = []; });
+    state.players = [{ name: defaultPlayerName(0), hand: [] }];
+    state.currentPlayer = 0;
     closeSettings();
+    rebuildPlayerList();
+    renderLeaderboard();
+    updateActivePlayerName();
     buildCardSections();
     updateAllScores();
 }
