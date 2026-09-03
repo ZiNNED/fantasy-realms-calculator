@@ -376,37 +376,41 @@ function scoreCards(cards) {
     });
 
     // ===== Phase 4b: clearsBest brute-force =====
-        // Try each possible target, compute full score, and pick the one that gives the highest total
-        const effectivePoints = {};
-        activeHand.forEach(c => { effectivePoints[c.id] = zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
+    // Try each possible target, compute full score, and pick the one that gives the highest total
+    const effectivePoints = {};
+    activeHand.forEach(c => { effectivePoints[c.id] = zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
 
-        activeHand.forEach(card => {
-            const bonusRules = (card.bonus && card.bonus.rules) || [];
-            bonusRules.forEach(rule => {
-                if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
-                    const candidates = activeHand.filter(c => rule.of.suits.includes(c.suit));
-                    let bestTotal = -Infinity;
-                    let bestCard = null;
-                    candidates.forEach(candidate => {
-                        const testCleared = new Set([...activeClearedCards, candidate.id]);
-                        const result = computeScore(activeHand, effectivePoints, activeClearedSuits, testCleared, activeClearedTargets, _extraSuitsMap);
-                        if (result.total > bestTotal) {
-                            bestTotal = result.total;
-                            bestCard = candidate;
-                        }
-                    });
-                    if (bestCard) activeClearedCards.add(bestCard.id);
+    const clearsBestResults = {};
+    activeHand.forEach(card => {
+        const bonusRules = (card.bonus && card.bonus.rules) || [];
+        bonusRules.forEach(rule => {
+            if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
+                const candidates = activeHand.filter(c => (c.id !== card.id) && rule.of.suits.includes(c.suit));
+                let bestTotal = -Infinity;
+                let bestCard = null;
+                candidates.forEach(candidate => {
+                    const testCleared = new Set([...activeClearedCards, candidate.id]);
+                    const result = computeScore(activeHand, effectivePoints, activeClearedSuits, testCleared, activeClearedTargets, _extraSuitsMap);
+                    if (result.total > bestTotal) {
+                        bestTotal = result.total;
+                        bestCard = candidate;
+                    }
+                });
+                if (bestCard) {
+                    activeClearedCards.add(bestCard.id);
+                    clearsBestResults[card.id] = bestCard.id;
                 }
-            });
+            }
         });
+    });
 
-        // ===== Phase 5: Score active cards =====
-        const finalResult = computeScore(activeHand, effectivePoints, activeClearedSuits, activeClearedCards, activeClearedTargets, _extraSuitsMap);
-        let { total, cardScores, cardBase, cardNetBonus } = finalResult;
+    // ===== Phase 5: Score active cards =====
+    const finalResult = computeScore(activeHand, effectivePoints, activeClearedSuits, activeClearedCards, activeClearedTargets, _extraSuitsMap);
+    let { total, cardScores, cardBase, cardNetBonus } = finalResult;
 
-        blanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
+    blanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
 
-        return { total, cardScores, cardBase, cardNetBonus, blanked: [...blanked], zeroedPoints: [...zeroedPoints] };
+    return { total, cardScores, cardBase, cardNetBonus, blanked: [...blanked], zeroedPoints: [...zeroedPoints], clearsBestResults };
     }
 
     function computeScore(activeHand, effectivePoints, clearedSuits, clearedCards, clearedTargets, extraSuitsMap) {
@@ -996,6 +1000,15 @@ function updateAllScores() {
                             if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → .*$/, '') + ' → ' + target.name.en;
                         }
                     }
+                }
+            }
+
+            // For clearsBest: show which card was cleared
+            if (result.clearsBestResults && result.clearsBestResults[card.id]) {
+                const target = getCard(result.clearsBestResults[card.id]);
+                if (target) {
+                    const nameEl = row.querySelector('.card-name');
+                    if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → clears: .*$/, '') + ' → clears: ' + target.name.en;
                 }
             }
 
