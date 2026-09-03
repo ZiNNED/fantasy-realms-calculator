@@ -1066,8 +1066,7 @@ function penaltyTargetsCleared(rule, clearedTargets, cardSuit) {
 }
 
 // ===== UI: Settings Panel =====
-document.getElementById('settingsBtn').addEventListener('click', openSettings);
-document.getElementById('newGameBtn').addEventListener('click', newGame);
+// HTML uses onclick attributes; no id="settingsBtn"/"newGameBtn" elements
 
 function openSettings() {
     const panel = document.getElementById('settingsPanel');
