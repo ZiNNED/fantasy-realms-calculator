@@ -247,9 +247,43 @@ function scoreCards(cards) {
     //
     _extraSuitsMap = null;
 
-    // ===== Phase 1a: Compute blanked cards (blank-others) =====
+    // ===== Phase 1: Compute clear effects from ALL cards =====
+    // Clears must be evaluated before blanking so that cards like Protection Rune
+    // (clears: all) can cancel blanking penalties before they're applied.
+    const clearedSuits = new Set();
+    const clearedCards = new Set();
+    const clearedTargets = new Map();
+    clearedTargets.set('*', new Set());
+    cards.forEach(card => {
+        const bonusRules = (card.bonus && card.bonus.rules) || [];
+        bonusRules.forEach(rule => {
+            if (rule.type === 'clears' && rule.suit) {
+                if (rule.suit === 'all') {
+                    SUIT_ORDER.forEach(s => clearedSuits.add(s));
+                } else {
+                    clearedSuits.add(rule.suit);
+                }
+            }
+            if (rule.type === 'clearsTarget' && rule.suit) {
+                if (rule.on && rule.on.suit) {
+                    if (!clearedTargets.has(rule.on.suit)) clearedTargets.set(rule.on.suit, new Set());
+                    clearedTargets.get(rule.on.suit).add(rule.suit);
+                } else {
+                    clearedTargets.get('*').add(rule.suit);
+                }
+            }
+            if (rule.type === 'extraSuits' && rule.suits) {
+                if (!_extraSuitsMap) _extraSuitsMap = {};
+                _extraSuitsMap[card.id] = [...new Set([...(_extraSuitsMap[card.id] || []), ...rule.suits])];
+            }
+        });
+    });
+
+    // ===== Phase 2: Compute blanked cards =====
+    // Skip blanking penalties from cards whose suit is cleared (e.g. Protection Rune)
     const blanked = new Set();
     cards.forEach(card => {
+        if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
         (card.penalty || []).forEach(rule => {
             if (rule.type === 'blanks' && rule.of) {
                 if (rule.mode === 'allExcept') {
@@ -279,11 +313,13 @@ function scoreCards(cards) {
         });
     });
 
-    // ===== Phase 1b: Self-blank — evaluate against the hand AFTER general blanks =====
+    // ===== Phase 2b: Self-blank — evaluate against the hand AFTER general blanks =====
     // A blanked card does not exist for counting purposes, so selfBlank checks
     // must look at the remaining (non-blanked) hand only.
+    // Also skip selfBlank from cards whose suit is cleared.
     const postBlankHand = cards.filter(c => !blanked.has(c.id));
     cards.forEach(card => {
+        if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
         (card.penalty || []).forEach(rule => {
             if (rule.type === 'selfBlank' && rule.of) {
                 const resolvedFilter = { ...rule.of };
@@ -308,32 +344,41 @@ function scoreCards(cards) {
         }
     }
 
-    // ===== Phase 2: Active hand = non-blanked cards only =====
+    // ===== Phase 3: Active hand = non-blanked cards only =====
     const activeHand = cards.filter(c => !blanked.has(c.id));
 
-    // ===== Phase 3: Process clear effects =====
-    const clearedSuits = new Set();
-    const clearedCards = new Set();
-    const clearedTargets = new Map();
-    clearedTargets.set('*', new Set());
+    // ===== Phase 4: Recompute clears from active cards only =====
+    // If a card with a clears effect was blanked, its clears should not apply.
+    // We rebuild the cleared sets from the active hand only.
+    const activeClearedSuits = new Set();
+    const activeClearedCards = new Set();
+    const activeClearedTargets = new Map();
+    activeClearedTargets.set('*', new Set());
     activeHand.forEach(card => {
         const bonusRules = (card.bonus && card.bonus.rules) || [];
         bonusRules.forEach(rule => {
             if (rule.type === 'clears' && rule.suit) {
                 if (rule.suit === 'all') {
-                    SUIT_ORDER.forEach(s => clearedSuits.add(s));
+                    SUIT_ORDER.forEach(s => activeClearedSuits.add(s));
                 } else {
-                    clearedSuits.add(rule.suit);
+                    activeClearedSuits.add(rule.suit);
                 }
             }
             if (rule.type === 'clearsTarget' && rule.suit) {
                 if (rule.on && rule.on.suit) {
-                    if (!clearedTargets.has(rule.on.suit)) clearedTargets.set(rule.on.suit, new Set());
-                    clearedTargets.get(rule.on.suit).add(rule.suit);
+                    if (!activeClearedTargets.has(rule.on.suit)) activeClearedTargets.set(rule.on.suit, new Set());
+                    activeClearedTargets.get(rule.on.suit).add(rule.suit);
                 } else {
-                    clearedTargets.get('*').add(rule.suit);
+                    activeClearedTargets.get('*').add(rule.suit);
                 }
             }
+        });
+    });
+
+    // ===== Phase 4b: clearsBest from active cards only =====
+    activeHand.forEach(card => {
+        const bonusRules = (card.bonus && card.bonus.rules) || [];
+        bonusRules.forEach(rule => {
             if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
                 let bestCard = null;
                 let bestPenalty = 0;
@@ -343,7 +388,7 @@ function scoreCards(cards) {
                     (candidate.penalty || []).forEach(pr => {
                         if (pr.type) return;
                         if (pr.points >= 0) return;
-                        if (penaltyTargetsCleared(pr, clearedTargets, candidate.suit)) return;
+                        if (penaltyTargetsCleared(pr, activeClearedTargets, candidate.suit)) return;
                         const resolvedFilter = { ...pr.of };
                         if (resolvedFilter.suit === 'same') resolvedFilter.suit = candidate.suit;
                         let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
@@ -363,16 +408,12 @@ function scoreCards(cards) {
                         bestCard = candidate;
                     }
                 });
-                if (bestCard) clearedCards.add(bestCard.id);
-            }
-            if (rule.type === 'extraSuits' && rule.suits) {
-                if (!_extraSuitsMap) _extraSuitsMap = {};
-                _extraSuitsMap[card.id] = [...new Set([...(_extraSuitsMap[card.id] || []), ...rule.suits])];
+                if (bestCard) activeClearedCards.add(bestCard.id);
             }
         });
     });
 
-    // ===== Phase 4: Score active cards =====
+    // ===== Phase 5: Score active cards =====
     let total = 0;
     const cardScores = {};
     const cardBase = {};
@@ -385,7 +426,7 @@ function scoreCards(cards) {
     activeHand.forEach(card => {
         let cardScore = effectivePoints[card.id];
         cardBase[card.id] = effectivePoints[card.id];
-        const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
+        const isCleared = activeClearedSuits.has(card.suit) || activeClearedCards.has(card.id);
 
         // ----- Bonuses -----
         const bonusObj = card.bonus || {};
@@ -521,7 +562,7 @@ function scoreCards(cards) {
         if (card.penalty && !isCleared) {
             card.penalty.forEach(rule => {
                 if (rule.type) return;
-                if (penaltyTargetsCleared(rule, clearedTargets, card.suit)) return;
+                if (penaltyTargetsCleared(rule, activeClearedTargets, card.suit)) return;
 
                 const resolvedFilter = { ...rule.of };
                 if (resolvedFilter.suit === 'same') {
