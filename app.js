@@ -1,61 +1,97 @@
-// app.js — Fantasy Realms Calculator
-// Full path: /home/dennis/fantasy-realms-calculator/app.js
+// ============================================
+// Fantasy Realms Calculator — App Logic
+// ============================================
 
-// SUIT_ORDER, SUIT_COLORS, and getCard were historically imported from cards.js
-// but are now self-contained in app.js. CARDS is loaded as a global via <script src="cards.js">.
+// ===== Suit Definitions =====
 const SUIT_ORDER = ['army', 'artifact', 'beast', 'flame', 'flood', 'land', 'leader', 'weapon', 'weather', 'wild', 'wizard'];
-const SUIT_COLORS = {
-    wizard: '#E75594', flood: '#4D4775', army: '#524239', weather: '#9DC6EF',
-    land: '#633E28', flame: '#C54F3F', weapon: '#918A7D', artifact: '#F8743E',
-    leader: '#82529B', beast: '#60A362', wild: '#D4D4D3',
+const SUIT_LABELS = {
+    wizard: 'Wizards',
+    leader: 'Leaders',
+    beast: 'Beasts',
+    land: 'Lands',
+    weather: 'Weather',
+    flood: 'Floods',
+    flame: 'Flames',
+    weapon: 'Weapons',
+    army: 'Armies',
+    artifact: 'Artifacts',
+    wild: 'Wild',
 };
-function getCard(id) {
-    if (typeof CARDS === 'undefined') return null;
-    try { return CARDS.find(c => c.id === id); } catch (e) { return null; }
-}
+const SUIT_COLORS = {
+    wizard: '#E75594',
+    flood: '#4D4775',
+    army: '#524239',
+    weather: '#9DC6EF',
+    land: '#633E28',
+    flame: '#C54F3F',
+    weapon: '#918A7D',
+    artifact: '#F8743E',
+    leader: '#82529B',
+    beast: '#60A362',
+    wild: '#D4D4D3',
+};
+
+// ===== Player Colors =====
+const PLAYER_COLORS = ['#7c3aed', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
 
 // ===== Localization =====
-const LANG = 'en';
-const strings = {
+let LANG = 'en';
+
+const I18N = {
     en: {
-        appTitle: 'Fantasy Realms Calculator',
-        player: 'Player',
-        addPlayer: '+ Add Player',
-        removePlayer: 'Remove',
-        handLimit: 'Hand limit',
-        newGame: 'New Game',
         total: 'Total',
-        settings: 'Settings',
-        promoSection: 'Promo Cards',
-        confirmNewGame: 'Start a new game? All current scores will be lost.',
-        removePlayerConfirm: 'Remove this player?',
-        jester: 'Jester',
-        phoenix: 'Phoenix',
-        blanked: 'BLANKED',
-        zeroBase: '0 BASE',
+        score: 'Score',
+        suit: 'Suit',
+        points: 'Points',
+        hand: 'Hand',
+        clickToAdd: 'Tap a card to add it to your hand',
+        tapToRemove: 'Tap card to remove',
+        base: 'Base',
+        confirmNewGame: 'Start a new game? This will reset all scores.',
+        player: 'Player',
+        addPlayer: 'Add Player',
+        newGame: 'New Game',
+        players: 'Players',
+        language: 'Language',
+        leaderboard: 'Leaderboard',
+        search: 'Search cards...',
+        taken: 'Taken',
     },
 };
 
-function t(key) { return (strings[LANG] && strings[LANG][key]) || key; }
+function t(key) { return I18N[LANG][key] || key; }
+
+function translateUI() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+    });
+}
+
+function setLanguage(lang) {
+    if (lang !== 'en') return;
+    LANG = lang;
+    translateUI();
+    updateLangButtons();
+    buildCardSections();
+    updateAllScores();
+}
+
+function updateLangButtons() {
+    document.getElementById('langEn').classList.toggle('active', LANG === 'en');
+}
+
+function defaultPlayerName(index) {
+    return t('player') + ' ' + (index + 1);
+}
 
 // ===== State =====
 let state = {
     currentPlayer: 0,
     players: [{ name: defaultPlayerName(0), hand: [] }],
-    expansions: {},
+    expansions: { 'promo-jester': false, 'promo-phoenix': false },
 };
 
-function defaultPlayerName(idx) { return t('player') + ' ' + (idx + 1); }
-
-// ===== Persistence =====
-function saveSettings() {
-    try {
-        localStorage.setItem('fantasySettings', JSON.stringify({
-            expansions: state.expansions,
-        }));
-    } catch (e) { /* ignore */ }
-}
-
+// ===== Load saved settings =====
 function loadSettings() {
     try {
         const saved = localStorage.getItem('fantasySettings');
@@ -67,359 +103,120 @@ function loadSettings() {
 }
 loadSettings();
 
-// Cards filtered by expansions
-function getAvailableCards() {
-    return CARDS.filter(card => {
-        const exp = card.set || 'base';
-        return exp === 'base' || state.expansions[exp];
+// ===== Helpers =====
+function getCard(id) {
+    return CARDS.find(c => c.id === id);
+}
+
+function isCardTaken(cardId, excludePlayerIdx) {
+    return state.players.some((p, i) => {
+        if (excludePlayerIdx !== undefined && i === excludePlayerIdx) return false;
+        return p.hand.includes(cardId);
     });
 }
 
-// ===== Suit ordering for display =====
-const SUIT_DISPLAY_ORDER = ['wizard', 'flood', 'army', 'weather', 'land', 'flame', 'weapon', 'artifact', 'leader', 'beast', 'wild'];
-
-// ===== DOM =====
-const app = document.getElementById('app');
-
-function buildCardSections() {
-    // Remove old sections
-    document.querySelectorAll('.suit-section').forEach(el => el.remove());
-
-    const bySuit = {};
-    getAvailableCards().forEach(card => {
-        if (!bySuit[card.suit]) bySuit[card.suit] = [];
-        bySuit[card.suit].push(card);
-    });
-
-    SUIT_DISPLAY_ORDER.forEach(suit => {
-        const cardsInSuit = bySuit[suit] || [];
-        if (cardsInSuit.length === 0) return;
-
-        const section = document.createElement('div');
-        section.className = 'suit-section';
-
-        const summary = document.createElement('div');
-        summary.className = 'suit-summary';
-        summary.textContent = suit.charAt(0).toUpperCase() + suit.slice(1);
-        summary.style.background = SUIT_COLORS[suit] || '#888';
-        summary.style.color = suit === 'wild' ? '#333' : '#fff';
-        summary.addEventListener('click', () => {
-            section.classList.toggle('collapsed');
-        });
-        section.appendChild(summary);
-
-        const grid = document.createElement('div');
-        grid.className = 'card-grid';
-        cardsInSuit.forEach(card => {
-            const row = document.createElement('div');
-            row.className = 'card-row';
-            row.id = 'row-' + card.id;
-            row.style.borderLeft = '3px solid ' + (SUIT_COLORS[card.suit] || '#888');
-
-            // Indicator
-            const indicator = document.createElement('span');
-            indicator.className = 'card-indicator';
-            indicator.id = 'ind-' + card.id;
-            row.appendChild(indicator);
-
-            // Name
-            const name = document.createElement('span');
-            name.className = 'card-name';
-            name.textContent = card.name.en + ((card.set && card.set !== 'base') ? ' [P]' : '');
-            row.appendChild(name);
-
-            // Base points
-            const base = document.createElement('span');
-            base.className = 'card-base';
-            base.id = 'base-' + card.id;
-            base.textContent = '...';
-            base.style.display = 'none';
-            row.appendChild(base);
-
-            // Net bonus
-            const net = document.createElement('span');
-            net.className = 'card-net';
-            net.id = 'net-' + card.id;
-            net.textContent = '';
-            row.appendChild(net);
-
-            // Score
-            const score = document.createElement('span');
-            score.className = 'card-score';
-            score.id = 'score-' + card.id;
-            score.textContent = '...';
-            row.appendChild(score);
-
-            row.addEventListener('click', () => toggleCard(card.id));
-            grid.appendChild(row);
-        });
-        section.appendChild(grid);
-        app.appendChild(section);
-    });
-}
-
-function toggleCard(cardId) {
-    const player = state.players[state.currentPlayer];
-    const idx = player.hand.indexOf(cardId);
-    if (idx >= 0) {
-        player.hand.splice(idx, 1);
-    } else {
-        const limit = handCapacity(player);
-        if (player.hand.length >= limit) {
-            player.hand.shift();
-        }
-        player.hand.push(cardId);
-    }
-    saveSettings();
+// ===== Player Management =====
+function addPlayer() {
+    if (state.players.length >= 6) return;
+    state.players.push({ name: defaultPlayerName(state.players.length), hand: [] });
+    rebuildPlayerList();
+    buildCardSections();
     updateAllScores();
 }
 
-// ===== Hand Capacity =====
-function handCapacity(player) {
-    return (player.hand.includes('necromancer') ? 8 : 7);
+function removePlayer(index) {
+    if (state.players.length <= 1) return;
+    state.players.splice(index, 1);
+    if (state.currentPlayer >= state.players.length) {
+        state.currentPlayer = state.players.length - 1;
+    }
+    rebuildPlayerList();
+    buildCardSections();
+    updateAllScores();
 }
 
-// ===== UI Updates =====
-function updateAllScores() {
-    document.querySelectorAll('.card-row').forEach(row => {
-        const id = row.id.replace('row-', '');
-        // Remove existing badges
-        row.querySelectorAll('.card-blanked-badge, .card-change-badge, .clears-best-badge').forEach(b => b.remove());
-        // Show base/net by default
-        const baseEl = document.getElementById('base-' + id);
-        const netEl = document.getElementById('net-' + id);
-        const scoreEl = document.getElementById('score-' + id);
-        const indicator = document.getElementById('ind-' + id);
-        if (baseEl) { baseEl.textContent = ''; baseEl.style.display = 'none'; }
-        if (netEl) netEl.textContent = '';
-        if (scoreEl) scoreEl.textContent = '';
-        if (indicator) indicator.className = 'card-indicator';
+function selectPlayer(index) {
+    state.currentPlayer = index;
+    rebuildPlayerList();
+    updateActivePlayerName();
+    buildCardSections();
+    updateAllScores();
+}
+
+function rebuildPlayerList() {
+    const list = document.getElementById('settingsPlayerList');
+    list.innerHTML = '';
+    state.players.forEach((p, i) => {
+        const pIdx = i;
+        const row = document.createElement('div');
+        row.className = 'settings-player-row' + (i === state.currentPlayer ? ' active' : '');
+
+        const color = document.createElement('span');
+        color.className = 'settings-player-color';
+        color.style.background = PLAYER_COLORS[i % PLAYER_COLORS.length];
+        row.appendChild(color);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'settings-player-name';
+        nameSpan.textContent = p.name;
+        nameSpan.onclick = function(e) {
+            e.stopPropagation();
+            editPlayerName(pIdx);
+        };
+        row.appendChild(nameSpan);
+
+        if (i > 0) {
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'settings-player-remove';
+            removeBtn.textContent = '✕';
+            removeBtn.onclick = function(e) { e.stopPropagation(); removePlayer(pIdx); };
+            row.appendChild(removeBtn);
+        }
+
+        row.onclick = function() { selectPlayer(pIdx); closeSettings(); };
+        list.appendChild(row);
     });
-
-    const players = state.players;
-    if (players.length === 0) return;
-
-    for (let pi = 0; pi < players.length; pi++) {
-        const result = calculateScore(pi);
-        if (!result) continue;
-
-        // Check if it's the currently displayed player
-        const isCurrent = (pi === state.currentPlayer);
-
-        if (isCurrent) {
-            // Update per-card scores
-            document.querySelectorAll('.card-row').forEach(row => {
-                const cid = row.id.replace('row-', '');
-                const card = getCard(cid);
-                if (!card) return;
-
-                // Determine if this card is in the current player's hand
-                const inHand = players[pi].hand.includes(cid);
-                const blankedIds = result.blanked || [];
-                const zeroedIds = result.zeroedPoints || [];
-                const isBlanked = blankedIds.includes(cid);
-                const isZeroed = zeroedIds.includes(cid);
-
-                // Base points
-                const base = result.cardBase && result.cardBase[cid] !== undefined ? result.cardBase[cid] : (card.points || 0);
-                const baseEl = document.getElementById('base-' + cid);
-                if (baseEl) {
-                    if (inHand) {
-                        baseEl.textContent = '(' + base + ')';
-                        baseEl.style.display = '';
-                    } else {
-                        baseEl.textContent = '';
-                        baseEl.style.display = 'none';
-                    }
-                }
-
-                // Net bonus
-                const net = result.cardNetBonus && result.cardNetBonus[cid] !== undefined ? result.cardNetBonus[cid] : 0;
-                const netEl = document.getElementById('net-' + cid);
-                if (netEl) {
-                    if (inHand && net !== 0) {
-                        netEl.textContent = (net > 0 ? '+' : '') + net;
-                    } else {
-                        netEl.textContent = '';
-                    }
-                }
-
-                // Score
-                const score = (inHand && result.cardScores && result.cardScores[cid] !== undefined) ? result.cardScores[cid] : 0;
-                const scoreEl = document.getElementById('score-' + cid);
-                if (scoreEl) scoreEl.textContent = inHand ? score : '';
-
-                // Indicator + badges
-                const indicator = document.getElementById('ind-' + cid);
-                if (indicator) {
-                    if (inHand) {
-                        indicator.className = 'card-indicator selected';
-                    } else {
-                        indicator.className = 'card-indicator';
-                    }
-                }
-
-                // Blank badges
-                if (isBlanked) {
-                    const badge = document.createElement('span');
-                    badge.className = 'card-blanked-badge';
-                    badge.textContent = t('blanked');
-                    row.querySelector('.card-name').after(badge);
-                } else if (isZeroed) {
-                    const badge = document.createElement('span');
-                    badge.className = 'card-blanked-badge zeroed';
-                    badge.textContent = t('zeroBase');
-                    row.querySelector('.card-name').after(badge);
-                }
-
-                // Change badges
-                const badgeTexts = [];
-                if (result.suitOverrides && result.suitOverrides[cid] !== undefined) {
-                    badgeTexts.push(result.suitOverrides[cid].toUpperCase());
-                }
-                if (result.copySuits) {
-                    const cs = result.copySuits.find(x => x.cardId === cid);
-                    if (cs) badgeTexts.push(cs.to.toUpperCase());
-                }
-                if (badgeTexts.length > 0) {
-                    const badge = document.createElement('span');
-                    badge.className = 'card-change-badge';
-                    badge.textContent = badgeTexts.join(', ');
-                    row.querySelector('.card-name').after(badge);
-                }
-
-                // clearsBest display
-                if (result.clearsBestResults && result.clearsBestResults[cid]) {
-                    const target = getCard(result.clearsBestResults[cid]);
-                    if (target) {
-                        const badge = document.createElement('span');
-                        badge.className = 'card-change-badge clears-best-badge';
-                        badge.textContent = '→ clears: ' + target.name.en;
-                        row.querySelector('.card-name').after(badge);
-                    }
-                }
-
-                // copyCard display
-                if (result.copyCards) {
-                    const cc = result.copyCards.find(x => x.cardId === cid);
-                    if (cc) {
-                        const target = getCard(cc.targetId);
-                        if (target) {
-                            const badge = document.createElement('span');
-                            badge.className = 'card-change-badge';
-                            badge.textContent = '↻ ' + target.name.en + ' (' + (cc.to || '').toUpperCase() + ', ' + cc.points + 'pts)';
-                            row.querySelector('.card-name').after(badge);
-                        }
-                    }
-                }
-
-                // copyNameSuit display
-                if (result.copyNameSuits) {
-                    const ns = result.copyNameSuits.find(x => x.cardId === cid);
-                    if (ns) {
-                        const target = getCard(ns.targetId);
-                        if (target) {
-                            const badge = document.createElement('span');
-                            badge.className = 'card-change-badge';
-                            badge.textContent = '↻ ' + target.name.en;
-                            row.querySelector('.card-name').after(badge);
-                        }
-                    }
-                }
-            });
-        }
-    }
-
-    // ===== Summary =====
-    const summaryDiv = document.getElementById('summary');
-    if (!summaryDiv) return;
-    summaryDiv.innerHTML = '';
-
-    const currentPlayer = players[state.currentPlayer];
-    if (!currentPlayer) return;
-    const curResult = calculateScore(state.currentPlayer);
-
-    // Player label
-    const playerLabel = document.createElement('div');
-    playerLabel.className = 'summary-player';
-    playerLabel.textContent = currentPlayer.name;
-    summaryDiv.appendChild(playerLabel);
-
-    // Total
-    const totalEl = document.createElement('div');
-    totalEl.className = 'summary-total';
-    totalEl.textContent = t('total') + ': ' + (curResult ? curResult.total : 0);
-    summaryDiv.appendChild(totalEl);
-
-    // Change info
-    const changeInfo = document.getElementById('changeSuitInfo');
-    if (changeInfo) {
-        let infoLines = [];
-        if (curResult && curResult.changeSuit) {
-            const cs = curResult.changeSuit;
-            infoLines.push(cs.targetId + ': ' + cs.from + ' → ' + cs.to);
-        }
-        if (curResult && curResult.copySuits) {
-            curResult.copySuits.forEach(cs => {
-                infoLines.push(cs.cardId + ': ' + cs.from + ' → ' + cs.to);
-            });
-        }
-        if (curResult && curResult.copyCards) {
-            curResult.copyCards.forEach(cc => {
-                infoLines.push(cc.cardId + ': copies ' + cc.targetId + ' (' + cc.to + ')');
-            });
-        }
-        if (curResult && curResult.copyNameSuits) {
-            curResult.copyNameSuits.forEach(ns => {
-                infoLines.push(ns.cardId + ': copies name+suit ' + ns.targetId + ' (' + ns.to + ')');
-            });
-        }
-        if (curResult && curResult.clearsBestResults) {
-            Object.entries(curResult.clearsBestResults).forEach(([cardId, targetId]) => {
-                const card = getCard(cardId);
-                const target = getCard(targetId);
-                if (card && target) {
-                    infoLines.push(card.name.en + ' → clears: ' + target.name.en);
-                }
-            });
-        }
-        if (infoLines.length > 0) {
-            changeInfo.innerHTML = infoLines.map(l => '<div class="change-line">' + l + '</div>').join('');
-        } else {
-            changeInfo.innerHTML = '';
-        }
-    }
-
-    // Suit breakdown
-    const suitBreakdown = document.getElementById('suitBreakdown');
-    if (!suitBreakdown) return;
-    suitBreakdown.innerHTML = '';
-
-    if (curResult) {
-        let suitTotals = {};
-        currentPlayer.hand.forEach(cid => {
-            const card = getCard(cid);
-            if (!card) return;
-            const blankedIds = curResult.blanked || [];
-            if (blankedIds.includes(cid)) return;
-            const score = curResult.cardScores && curResult.cardScores[cid] !== undefined ? curResult.cardScores[cid] : 0;
-            suitTotals[card.suit] = (suitTotals[card.suit] || 0) + score;
-        });
-
-        SUIT_DISPLAY_ORDER.forEach(suit => {
-            if (!suitTotals[suit]) return;
-            const line = document.createElement('div');
-            line.className = 'suit-line';
-            const color = SUIT_COLORS[suit] || '#888';
-            line.innerHTML = '<span class="suit-dot" style="background:' + color + '"></span> ' +
-                suit.charAt(0).toUpperCase() + suit.slice(1) + ': ' + suitTotals[suit];
-            suitBreakdown.appendChild(line);
-        });
-    }
+    updateActivePlayerName();
 }
 
-// ===== Calculation of clearsBest returns from Phase 4b =====
-// Extended to handle blanking from cards with blanks penalties
+function editPlayerName(idx) {
+    const rows = document.querySelectorAll('.settings-player-row');
+    if (idx >= rows.length) return;
+    const row = rows[idx];
+    const nameSpan = row.querySelector('.settings-player-name');
+    if (!nameSpan) return;
+
+    const current = nameSpan.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = current;
+    input.style.cssText = 'width:100%;background:white;color:#1a1a2e;border:1px solid #7c3aed;border-radius:4px;padding:2px 6px;font-size:0.85rem;font-family:inherit;outline:none;';
+
+    nameSpan.style.display = 'none';
+    nameSpan.parentNode.insertBefore(input, nameSpan.nextSibling);
+    input.focus();
+    input.select();
+
+    function save() {
+        const val = input.value.trim() || defaultPlayerName(idx);
+        nameSpan.textContent = val;
+        state.players[idx].name = val;
+        input.remove();
+        nameSpan.style.display = '';
+        updateActivePlayerName();
+    }
+
+    input.onblur = save;
+    input.onkeydown = function(e) {
+        if (e.key === 'Enter') { save(); }
+        if (e.key === 'Escape') { nameSpan.style.display = ''; input.remove(); }
+    };
+}
+
+function updateActivePlayerName() {
+    const el = document.getElementById('currentPlayerName');
+    if (el) el.textContent = state.players[state.currentPlayer].name;
+}
 
 // ===== Scoring Engine =====
 // ===== Global extra suits map (set per scoreCards call) =====
@@ -445,294 +242,14 @@ function matchesFilter(card, filter) {
     return false;
 }
 
-/**
- * Phase 2–3: Compute blanked set, zeroedPoints, and active hand given the full cards array
- * and the cleared suits/cards sets. extraClearedCards are additional card IDs that should be
- * treated as cleared beyond those already in clearedCards (used by clearsBest trials).
- */
-function computeBlankedAndActive(cards, clearedSuits, clearedCards, extraClearedCards) {
-    const allClearedCards = new Set([...clearedCards, ...(extraClearedCards || [])]);
-    const blanked = new Set();
-
-    // Phase 2a: General blanks
-    cards.forEach(card => {
-        if (clearedSuits.has(card.suit) || allClearedCards.has(card.id)) return;
-        (card.penalty || []).forEach(rule => {
-            if (rule.type === 'blanks' && rule.of) {
-                if (rule.mode === 'allExcept') {
-                    cards.forEach(candidate => {
-                        const matchesSuit = rule.of.suits && rule.of.suits.includes(candidate.suit);
-                        const matchesIds = rule.of.ids && rule.of.ids.includes(candidate.id);
-                        if (matchesSuit || matchesIds) return;
-                        blanked.add(candidate.id);
-                    });
-                } else {
-                    let targetSuits = [];
-                    if (rule.of.suits) targetSuits = rule.of.suits;
-                    else if (rule.of.suit) targetSuits = [rule.of.suit];
-
-                    if (targetSuits.length > 0) {
-                        cards.forEach(candidate => {
-                            if (rule.of.other && candidate.id === card.id) return;
-                            if (targetSuits.includes(candidate.suit)) {
-                                if (rule.of.except && rule.of.except.includes(candidate.id)) return;
-                                blanked.add(candidate.id);
-                            }
-                        });
-                    }
-                }
-            }
-        });
-    });
-
-    // Phase 2b: Self-blank — evaluate against the hand AFTER general blanks
-    const postBlankHand = cards.filter(c => !blanked.has(c.id));
-    cards.forEach(card => {
-        if (clearedSuits.has(card.suit) || allClearedCards.has(card.id)) return;
-        (card.penalty || []).forEach(rule => {
-            if (rule.type === 'selfBlank' && rule.of) {
-                const resolvedFilter = { ...rule.of };
-                let count = postBlankHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
-                if (rule.when === 'present') {
-                    if (count > 0) blanked.add(card.id);
-                } else {
-                    if (count === 0) blanked.add(card.id);
-                }
-            }
-        });
-    });
-
-    // Partial blank rescue
-    const zeroedPoints = new Set();
-    for (const id of blanked) {
-        const card = cards.find(c => c.id === id);
-        if (card && (card.penalty || []).some(r => r.type === 'partialBlank')) {
-            blanked.delete(id);
-            zeroedPoints.add(id);
-        }
-    }
-
-    // Phase 3: Active hand
-    const activeHand = cards.filter(c => !blanked.has(c.id));
-
-    return { blanked, zeroedPoints, activeHand };
-}
-
-/**
- * Phase 4a: Recompute clears from a given hand. extraClearedCards are added to the resulting
- * clearedCards set (used by clearsBest evaluations).
- */
-function recomputeClears(hand, extraClearedCards) {
-    const suits = new Set();
-    const ids = new Set([...(extraClearedCards || [])]);
-    const targets = new Map();
-    targets.set('*', new Set());
-
-    hand.forEach(card => {
-        const bonusRules = (card.bonus && card.bonus.rules) || [];
-        bonusRules.forEach(rule => {
-            if (rule.type === 'clears' && rule.suit) {
-                if (rule.suit === 'all') {
-                    SUIT_ORDER.forEach(s => suits.add(s));
-                } else {
-                    suits.add(rule.suit);
-                }
-            }
-            if (rule.type === 'clearsTarget' && rule.suit) {
-                if (rule.on && rule.on.suit) {
-                    if (!targets.has(rule.on.suit)) targets.set(rule.on.suit, new Set());
-                    targets.get(rule.on.suit).add(rule.suit);
-                } else {
-                    targets.get('*').add(rule.suit);
-                }
-            }
-        });
-    });
-
-    return { suits, ids, targets };
-}
-
-function computeScore(activeHand, effectivePoints, clearedSuits, clearedCards, clearedTargets, extraSuitsMap) {
-    let total = 0;
-    const cardScores = {};
-    const cardBase = {};
-    const cardNetBonus = {};
-
-    activeHand.forEach(card => {
-        let cardScore = effectivePoints[card.id];
-        cardBase[card.id] = effectivePoints[card.id];
-        const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
-
-        // ----- Bonuses -----
-        const bonusObj = card.bonus || {};
-        const bonusRules = bonusObj.rules || [];
-        const bonusMode = bonusObj.mode || 'sum';
-
-        if (bonusRules.length > 0) {
-            const bonusPointsList = [];
-
-            bonusRules.forEach(rule => {
-                if (rule.type) return;
-
-                const resolvedFilter = { ...rule.of };
-                if (resolvedFilter.suit === 'same') {
-                    resolvedFilter.suit = card.suit;
-                }
-
-                let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
-
-                let rulePoints = 0;
-
-                if (rule.per === 'flat') {
-                    if (resolvedFilter.all) {
-                        const allMatch = activeHand.every(c => matchesFilter(c, resolvedFilter));
-                        if (allMatch && (!resolvedFilter.other || activeHand.length > 0)) {
-                            rulePoints = rule.points;
-                        }
-                    } else if (resolvedFilter.other) {
-                        if (count > 0) rulePoints = rule.points;
-                    } else {
-                        if (count > 0) rulePoints = rule.points;
-                    }
-                } else if (rule.per === 'flatAllIds') {
-                    let allMet = true;
-                    if (resolvedFilter.ids && Array.isArray(resolvedFilter.ids)) {
-                        const handIds = activeHand.map(c => c.id);
-                        if (!resolvedFilter.ids.every(id => handIds.includes(id))) allMet = false;
-                    }
-                    if (resolvedFilter.suits && Array.isArray(resolvedFilter.suits)) {
-                        const handSuits = new Set();
-                        activeHand.forEach(c => {
-                            handSuits.add(c.suit);
-                            if (extraSuitsMap && extraSuitsMap[c.id]) {
-                                extraSuitsMap[c.id].forEach(s => handSuits.add(s));
-                            }
-                        });
-                        if (!resolvedFilter.suits.every(s => handSuits.has(s))) allMet = false;
-                    }
-                    if (resolvedFilter.suit) {
-                        const hasSuit = activeHand.some(c => {
-                            if (c.suit === resolvedFilter.suit) return true;
-                            if (extraSuitsMap && extraSuitsMap[c.id] && extraSuitsMap[c.id].includes(resolvedFilter.suit)) return true;
-                            return false;
-                        });
-                        if (!hasSuit) allMet = false;
-                    }
-                    if (allMet) rulePoints = rule.points;
-                } else if (rule.per === 'flatIfNone') {
-                    if (count === 0) rulePoints = rule.points;
-                } else if (rule.per === 'each') {
-                    rulePoints = Math.max(0, count) * rule.points;
-                } else if (rule.per === 'threshold') {
-                    if (count >= (rule.min || 1)) rulePoints = rule.points;
-                } else if (rule.per === 'tiered') {
-                    if (rule.tiers) {
-                        for (const tier of rule.tiers) {
-                            if (count >= tier.min) { rulePoints = tier.points; break; }
-                        }
-                    }
-                } else if (rule.per === 'manyOf') {
-                    const suitCounts = {};
-                    activeHand.forEach(c => {
-                        const counted = new Set();
-                        if (!counted.has(c.suit)) { suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1; counted.add(c.suit); }
-                        if (extraSuitsMap && extraSuitsMap[c.id]) {
-                            extraSuitsMap[c.id].forEach(s => {
-                                if (!counted.has(s)) { suitCounts[s] = (suitCounts[s] || 0) + 1; counted.add(s); }
-                            });
-                        }
-                    });
-                    const min = rule.min || 1;
-                    rulePoints = Object.values(suitCounts).filter(cnt => cnt >= min).length * (rule.points || 0);
-                } else if (rule.per === 'runs') {
-                    const uniquePoints = [...new Set(activeHand.map(c => effectivePoints[c.id]))].sort((a, b) => a - b);
-                    const tiers = (rule.tiers || []).sort((a, b) => b.min - a.min);
-                    let runLen = 0;
-                    for (let i = 0; i < uniquePoints.length; i++) {
-                        if (i > 0 && uniquePoints[i] === uniquePoints[i - 1] + 1) { runLen++; } else { runLen = 1; }
-                        const nextExists = i + 1 < uniquePoints.length && uniquePoints[i + 1] === uniquePoints[i] + 1;
-                        if (!nextExists && runLen >= 3) {
-                            for (const tier of tiers) { if (runLen >= tier.min) { rulePoints += tier.points; break; } }
-                        }
-                    }
-                } else if (rule.per === 'baseBest') {
-                    const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
-                    if (matching.length > 0) {
-                        rulePoints = Math.max(...matching.map(c => effectivePoints[c.id]));
-                    }
-                } else if (rule.per === 'baseSum') {
-                    let matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
-                    if (resolvedFilter.other) {
-                        matching = matching.filter(c => c.id !== card.id);
-                    }
-                    rulePoints = matching.reduce((sum, c) => sum + effectivePoints[c.id], 0);
-                }
-
-                // ----- Condition check (if the rule has a condition, validate it) -----
-                if (rulePoints > 0 && rule.condition) {
-                    if (typeof rule.condition === 'string') {
-                        if (rule.condition === 'allDifferentSuits') {
-                            const suits = activeHand.map(c => c.suit);
-                            if (new Set(suits).size !== suits.length) rulePoints = 0;
-                        }
-                    } else if (rule.condition && rule.condition.type === 'hasCard') {
-                        const hasIt = activeHand.some(c => c.id === rule.condition.id || c.name?.en?.toLowerCase() === rule.condition.id);
-                        if (!hasIt) rulePoints = 0;
-                    }
-                }
-
-                bonusPointsList.push(rulePoints);
-            });
-
-            if (bonusMode === 'best') {
-                cardScore += Math.max(...bonusPointsList);
-            } else {
-                bonusPointsList.forEach(rp => { cardScore += rp; });
-            }
-        }
-
-        // ----- Penalties -----
-        if (card.penalty && !isCleared) {
-            card.penalty.forEach(rule => {
-                if (rule.type) return;
-                if (penaltyTargetsCleared(rule, clearedTargets, card.suit)) return;
-
-                const resolvedFilter = { ...rule.of };
-                if (resolvedFilter.suit === 'same') {
-                    resolvedFilter.suit = card.suit;
-                }
-
-                let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
-
-                if (rule.per === 'each') {
-                    cardScore += Math.max(0, count) * rule.points;
-                } else if (rule.per === 'flat' || rule.per === 'threshold') {
-                    if (count >= (rule.min || 1)) cardScore += rule.points;
-                } else if (rule.per === 'flatIfNone') {
-                    if (count === 0) cardScore += rule.points;
-                } else if (rule.per === 'tiered' && rule.tiers) {
-                    for (const tier of rule.tiers) {
-                        if (count >= tier.min) { cardScore += tier.points; break; }
-                    }
-                }
-            });
-        }
-
-        total += cardScore;
-        cardScores[card.id] = cardScore;
-        cardNetBonus[card.id] = cardScore - cardBase[card.id];
-    });
-
-    return { total, cardScores, cardBase, cardNetBonus };
-}
-
 function scoreCards(cards) {
+    // Take an array of card objects, compute full scoring (blanks → clears → bonus → penalty)
+    //
     _extraSuitsMap = null;
 
     // ===== Phase 1: Compute clear effects from ALL cards =====
+    // Clears must be evaluated before blanking so that cards like Protection Rune
+    // (clears: all) can cancel blanking penalties before they're applied.
     const clearedSuits = new Set();
     const clearedCards = new Set();
     const clearedTargets = new Map();
@@ -762,74 +279,130 @@ function scoreCards(cards) {
         });
     });
 
-    // ===== Phases 2–3: Compute blanked set and active hand =====
-    let { blanked, zeroedPoints, activeHand } = computeBlankedAndActive(cards, clearedSuits, clearedCards);
+    // ===== Phase 2: Compute blanked cards =====
+    // Skip blanking penalties from cards whose suit is cleared (e.g. Protection Rune)
+    const blanked = new Set();
+    cards.forEach(card => {
+        if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
+        (card.penalty || []).forEach(rule => {
+            if (rule.type === 'blanks' && rule.of) {
+                if (rule.mode === 'allExcept') {
+                    cards.forEach(candidate => {
+                        const matchesSuit = rule.of.suits && rule.of.suits.includes(candidate.suit);
+                        const matchesIds = rule.of.ids && rule.of.ids.includes(candidate.id);
+                        if (matchesSuit || matchesIds) return;
+                        blanked.add(candidate.id);
+                    });
+                } else {
+                    // Collect candidate suits from rule.of.suit (single) or rule.of.suits (array)
+                    let targetSuits = [];
+                    if (rule.of.suits) targetSuits = rule.of.suits;
+                    else if (rule.of.suit) targetSuits = [rule.of.suit];
 
-    // ===== Phase 4a: Recompute clears from active cards only =====
-    let ac = recomputeClears(activeHand);
-    let activeClearedSuits = ac.suits;
-    let activeClearedCards = ac.ids;
-    let activeClearedTargets = ac.targets;
-
-    // ===== Phase 4b: clearsBest brute-force =====
-    // Try each possible target, computing full score with blanking re-evaluated
-    // as if that target's blanks were suppressed.
-    const clearsBestResults = {};
-    // Snapshot the initial active hand so candidate filtering is consistent
-    const initialActiveHand = activeHand;
-    // Collect all clearsBest choices so we can recompute the final blanking state
-    const allClearsBestChoices = new Set();
-
-    initialActiveHand.forEach(card => {
-        const bonusRules = (card.bonus && card.bonus.rules) || [];
-        bonusRules.forEach(rule => {
-            if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
-                const candidates = initialActiveHand.filter(c => (c.id !== card.id) && rule.of.suits.includes(c.suit));
-                if (candidates.length === 0) return;
-
-                let bestTotal = -Infinity;
-                let bestCard = null;
-
-                candidates.forEach(candidate => {
-                    // Recompute blanking as if this candidate's blanks were suppressed
-                    const trialClearedCards = new Set([...allClearsBestChoices, candidate.id]);
-                    const trial = computeBlankedAndActive(cards, clearedSuits, clearedCards, trialClearedCards);
-                    const trialHand = trial.activeHand;
-                    const trialClears = recomputeClears(trialHand, trialClearedCards);
-                    const trialEP = {};
-                    trialHand.forEach(c => { trialEP[c.id] = trial.zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
-
-                    const trialResult = computeScore(trialHand, trialEP, trialClears.suits, trialClears.ids, trialClears.targets, _extraSuitsMap);
-                    if (trialResult.total > bestTotal) {
-                        bestTotal = trialResult.total;
-                        bestCard = candidate;
+                    if (targetSuits.length > 0) {
+                        cards.forEach(candidate => {
+                            if (rule.of.other && candidate.id === card.id) return;
+                            if (targetSuits.includes(candidate.suit)) {
+                                if (rule.of.except && rule.of.except.includes(candidate.id)) return;
+                                blanked.add(candidate.id);
+                            }
+                        });
                     }
-                });
-
-                if (bestCard) {
-                    allClearsBestChoices.add(bestCard.id);
-                    clearsBestResults[card.id] = bestCard.id;
                 }
             }
         });
     });
 
-    // ===== Recompute final blanking state with all clearsBest choices applied =====
-    if (allClearsBestChoices.size > 0) {
-        const final = computeBlankedAndActive(cards, clearedSuits, clearedCards, allClearsBestChoices);
-        blanked = final.blanked;
-        zeroedPoints = final.zeroedPoints;
-        activeHand = final.activeHand;
+    // ===== Phase 2b: Self-blank — evaluate against the hand AFTER general blanks =====
+    // A blanked card does not exist for counting purposes, so selfBlank checks
+    // must look at the remaining (non-blanked) hand only.
+    // Also skip selfBlank from cards whose suit is cleared.
+    const postBlankHand = cards.filter(c => !blanked.has(c.id));
+    cards.forEach(card => {
+        if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
+        (card.penalty || []).forEach(rule => {
+            if (rule.type === 'selfBlank' && rule.of) {
+                const resolvedFilter = { ...rule.of };
+                let count = postBlankHand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+                if (rule.when === 'present') {
+                    if (count > 0) blanked.add(card.id);
+                } else {
+                    if (count === 0) blanked.add(card.id);
+                }
+            }
+        });
+    });
 
-        const finalClears = recomputeClears(activeHand, allClearsBestChoices);
-        activeClearedSuits = finalClears.suits;
-        activeClearedCards = finalClears.ids;
-        activeClearedTargets = finalClears.targets;
+    // ----- Partial blank cards: when blanked, keep suits active but zero their base points -----
+    const zeroedPoints = new Set();
+    for (const id of blanked) {
+        const card = cards.find(c => c.id === id);
+        if (card && (card.penalty || []).some(r => r.type === 'partialBlank')) {
+            blanked.delete(id);
+            zeroedPoints.add(id);
+        }
     }
 
-    // ===== Build effectivePoints from final state =====
+    // ===== Phase 3: Active hand = non-blanked cards only =====
+    const activeHand = cards.filter(c => !blanked.has(c.id));
+
+    // ===== Phase 4: Recompute clears from active cards only =====
+    // If a card with a clears effect was blanked, its clears should not apply.
+    // We rebuild the cleared sets from the active hand only.
+    const activeClearedSuits = new Set();
+    const activeClearedCards = new Set();
+    const activeClearedTargets = new Map();
+    activeClearedTargets.set('*', new Set());
+    activeHand.forEach(card => {
+        const bonusRules = (card.bonus && card.bonus.rules) || [];
+        bonusRules.forEach(rule => {
+            if (rule.type === 'clears' && rule.suit) {
+                if (rule.suit === 'all') {
+                    SUIT_ORDER.forEach(s => activeClearedSuits.add(s));
+                } else {
+                    activeClearedSuits.add(rule.suit);
+                }
+            }
+            if (rule.type === 'clearsTarget' && rule.suit) {
+                if (rule.on && rule.on.suit) {
+                    if (!activeClearedTargets.has(rule.on.suit)) activeClearedTargets.set(rule.on.suit, new Set());
+                    activeClearedTargets.get(rule.on.suit).add(rule.suit);
+                } else {
+                    activeClearedTargets.get('*').add(rule.suit);
+                }
+            }
+        });
+    });
+
+    // ===== Phase 4b: clearsBest brute-force =====
+    // Try each possible target, compute full score, and pick the one that gives the highest total
     const effectivePoints = {};
     activeHand.forEach(c => { effectivePoints[c.id] = zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
+
+    const clearsBestResults = {};
+    activeHand.forEach(card => {
+        const bonusRules = (card.bonus && card.bonus.rules) || [];
+        bonusRules.forEach(rule => {
+            if (rule.type === 'clearsBest' && rule.of && rule.of.suits) {
+                const candidates = activeHand.filter(c => (c.id !== card.id) && rule.of.suits.includes(c.suit));
+                let bestTotal = -Infinity;
+                let bestCard = null;
+                candidates.forEach(candidate => {
+                    const testCleared = new Set([...activeClearedCards, candidate.id]);
+                    const result = computeScore(activeHand, effectivePoints, activeClearedSuits, testCleared, activeClearedTargets, _extraSuitsMap);
+                    if (result.total > bestTotal) {
+                        bestTotal = result.total;
+                        bestCard = candidate;
+                    }
+                });
+                if (bestCard) {
+                    activeClearedCards.add(bestCard.id);
+                    clearsBestResults[card.id] = bestCard.id;
+                }
+            }
+        });
+    });
 
     // ===== Phase 5: Score active cards =====
     const finalResult = computeScore(activeHand, effectivePoints, activeClearedSuits, activeClearedCards, activeClearedTargets, _extraSuitsMap);
@@ -838,7 +411,183 @@ function scoreCards(cards) {
     blanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
 
     return { total, cardScores, cardBase, cardNetBonus, blanked: [...blanked], zeroedPoints: [...zeroedPoints], clearsBestResults };
-}
+    }
+
+    function computeScore(activeHand, effectivePoints, clearedSuits, clearedCards, clearedTargets, extraSuitsMap) {
+        let total = 0;
+        const cardScores = {};
+        const cardBase = {};
+        const cardNetBonus = {};
+
+        activeHand.forEach(card => {
+            let cardScore = effectivePoints[card.id];
+            cardBase[card.id] = effectivePoints[card.id];
+            const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
+
+            // ----- Bonuses -----
+            const bonusObj = card.bonus || {};
+            const bonusRules = bonusObj.rules || [];
+            const bonusMode = bonusObj.mode || 'sum';
+
+            if (bonusRules.length > 0) {
+                const bonusPointsList = [];
+
+                bonusRules.forEach(rule => {
+                    if (rule.type) return;
+
+                    const resolvedFilter = { ...rule.of };
+                    if (resolvedFilter.suit === 'same') {
+                        resolvedFilter.suit = card.suit;
+                    }
+
+                    let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                    if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+
+                    let rulePoints = 0;
+
+                    if (rule.per === 'flat') {
+                        if (resolvedFilter.all) {
+                            const allMatch = activeHand.every(c => matchesFilter(c, resolvedFilter));
+                            if (allMatch && (!resolvedFilter.other || activeHand.length > 0)) {
+                                rulePoints = rule.points;
+                            }
+                        } else if (resolvedFilter.other) {
+                            if (count > 0) rulePoints = rule.points;
+                        } else {
+                            if (count > 0) rulePoints = rule.points;
+                        }
+                    } else if (rule.per === 'flatAllIds') {
+                        let allMet = true;
+                        if (resolvedFilter.ids && Array.isArray(resolvedFilter.ids)) {
+                            const handIds = activeHand.map(c => c.id);
+                            if (!resolvedFilter.ids.every(id => handIds.includes(id))) allMet = false;
+                        }
+                        if (resolvedFilter.suits && Array.isArray(resolvedFilter.suits)) {
+                            const handSuits = new Set();
+                            activeHand.forEach(c => {
+                                handSuits.add(c.suit);
+                                if (extraSuitsMap && extraSuitsMap[c.id]) {
+                                    extraSuitsMap[c.id].forEach(s => handSuits.add(s));
+                                }
+                            });
+                            if (!resolvedFilter.suits.every(s => handSuits.has(s))) allMet = false;
+                        }
+                        if (resolvedFilter.suit) {
+                            const hasSuit = activeHand.some(c => {
+                                if (c.suit === resolvedFilter.suit) return true;
+                                if (extraSuitsMap && extraSuitsMap[c.id] && extraSuitsMap[c.id].includes(resolvedFilter.suit)) return true;
+                                return false;
+                            });
+                            if (!hasSuit) allMet = false;
+                        }
+                        if (allMet) rulePoints = rule.points;
+                    } else if (rule.per === 'flatIfNone') {
+                        if (count === 0) rulePoints = rule.points;
+                    } else if (rule.per === 'each') {
+                        rulePoints = Math.max(0, count) * rule.points;
+                    } else if (rule.per === 'threshold') {
+                        if (count >= (rule.min || 1)) rulePoints = rule.points;
+                    } else if (rule.per === 'tiered') {
+                        if (rule.tiers) {
+                            for (const tier of rule.tiers) {
+                                if (count >= tier.min) { rulePoints = tier.points; break; }
+                            }
+                        }
+                    } else if (rule.per === 'manyOf') {
+                        const suitCounts = {};
+                        activeHand.forEach(c => {
+                            const counted = new Set();
+                            if (!counted.has(c.suit)) { suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1; counted.add(c.suit); }
+                            if (extraSuitsMap && extraSuitsMap[c.id]) {
+                                extraSuitsMap[c.id].forEach(s => {
+                                    if (!counted.has(s)) { suitCounts[s] = (suitCounts[s] || 0) + 1; counted.add(s); }
+                                });
+                            }
+                        });
+                        const min = rule.min || 1;
+                        rulePoints = Object.values(suitCounts).filter(cnt => cnt >= min).length * (rule.points || 0);
+                    } else if (rule.per === 'runs') {
+                        const uniquePoints = [...new Set(activeHand.map(c => effectivePoints[c.id]))].sort((a, b) => a - b);
+                        const tiers = (rule.tiers || []).sort((a, b) => b.min - a.min);
+                        let runLen = 0;
+                        for (let i = 0; i < uniquePoints.length; i++) {
+                            if (i > 0 && uniquePoints[i] === uniquePoints[i - 1] + 1) { runLen++; } else { runLen = 1; }
+                            const nextExists = i + 1 < uniquePoints.length && uniquePoints[i + 1] === uniquePoints[i] + 1;
+                            if (!nextExists && runLen >= 3) {
+                                for (const tier of tiers) { if (runLen >= tier.min) { rulePoints += tier.points; break; } }
+                            }
+                        }
+                    } else if (rule.per === 'baseBest') {
+                        const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
+                        if (matching.length > 0) {
+                            rulePoints = Math.max(...matching.map(c => effectivePoints[c.id]));
+                        }
+                    } else if (rule.per === 'baseSum') {
+                        let matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
+                        if (resolvedFilter.other) {
+                            matching = matching.filter(c => c.id !== card.id);
+                        }
+                        rulePoints = matching.reduce((sum, c) => sum + effectivePoints[c.id], 0);
+                    }
+
+                    // ----- Condition check (if the rule has a condition, validate it) -----
+                    if (rulePoints > 0 && rule.condition) {
+                        if (typeof rule.condition === 'string') {
+                            if (rule.condition === 'allDifferentSuits') {
+                                const suits = activeHand.map(c => c.suit);
+                                if (new Set(suits).size !== suits.length) rulePoints = 0;
+                            }
+                        } else if (rule.condition && rule.condition.type === 'hasCard') {
+                            const hasIt = activeHand.some(c => c.id === rule.condition.id || c.name?.en?.toLowerCase() === rule.condition.id);
+                            if (!hasIt) rulePoints = 0;
+                        }
+                    }
+
+                    bonusPointsList.push(rulePoints);
+                });
+
+                if (bonusMode === 'best') {
+                    cardScore += Math.max(...bonusPointsList);
+                } else {
+                    bonusPointsList.forEach(rp => { cardScore += rp; });
+                }
+            }
+
+            // ----- Penalties -----
+            if (card.penalty && !isCleared) {
+                card.penalty.forEach(rule => {
+                    if (rule.type) return;
+                    if (penaltyTargetsCleared(rule, clearedTargets, card.suit)) return;
+
+                    const resolvedFilter = { ...rule.of };
+                    if (resolvedFilter.suit === 'same') {
+                        resolvedFilter.suit = card.suit;
+                    }
+
+                    let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                    if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+
+                    if (rule.per === 'each') {
+                        cardScore += Math.max(0, count) * rule.points;
+                    } else if (rule.per === 'flat' || rule.per === 'threshold') {
+                        if (count >= (rule.min || 1)) cardScore += rule.points;
+                    } else if (rule.per === 'flatIfNone') {
+                        if (count === 0) cardScore += rule.points;
+                    } else if (rule.per === 'tiered' && rule.tiers) {
+                        for (const tier of rule.tiers) {
+                            if (count >= tier.min) { cardScore += tier.points; break; }
+                        }
+                    }
+                });
+            }
+
+            total += cardScore;
+            cardScores[card.id] = cardScore;
+            cardNetBonus[card.id] = cardScore - cardBase[card.id];
+        });
+
+        return { total, cardScores, cardBase, cardNetBonus };
+    }
 
 function calculateScore(playerIdx) {
     const hand = state.players[playerIdx].hand.map(id => getCard(id)).filter(Boolean);
@@ -957,6 +706,7 @@ function calculateScore(playerIdx) {
         }
 
         // Handle copyNameSuit — independently optimize each copier (name + suit only, no points/penalty)
+        // Searches the full card pool, not just the hand — the copier can take any card's name/suit
         const copyNameSuits = [];
         for (const copier of copyNameSuitCards) {
             const copyRule = (copier.bonus && copier.bonus.rules || []).find(r => r.type === 'copyNameSuit');
@@ -1040,59 +790,407 @@ function calculateScore(playerIdx) {
     return scoreCards(hand);
 }
 
+function handCapacity(player) {
+    return (player.hand.includes('necromancer') ? 8 : 7);
+}
+
 function penaltyTargetsCleared(rule, clearedTargets, cardSuit) {
     // Check if this penalty rule targets a suit that's been cleared
     const targets = [];
-
-    // Extract target suit(s) from the rule's `of` filter
-    if (rule.of) {
-        if (rule.of.suit) targets.push(rule.of.suit);
-        if (rule.of.suits) targets.push(...rule.of.suits);
-    }
-
-    // Check global cleared targets (any card)
-    const globalTargets = clearedTargets.get('*');
-    for (const t of targets) {
-        if (globalTargets && globalTargets.has(t)) return true;
-    }
-
-    // Check scoped cleared targets (only on this card's suit)
-    const scopedTargets = clearedTargets.get(cardSuit);
-    for (const t of targets) {
-        if (scopedTargets && scopedTargets.has(t)) return true;
-    }
-
-    return false;
+    if (rule.of && rule.of.suit) targets.push(rule.of.suit);
+    if (rule.of && rule.of.suits) targets.push(...rule.of.suits);
+    if (targets.length === 0) return false;
+    const globalSet = clearedTargets.get('*') || new Set();
+    const scopedSet = clearedTargets.get(cardSuit) || new Set();
+    return targets.some(t => globalSet.has(t) || scopedSet.has(t));
 }
 
-// ===== UI: Settings Panel =====
-document.getElementById('settingsBtn').addEventListener('click', openSettings);
-document.getElementById('newGameBtn').addEventListener('click', newGame);
+// ===== Toggle Card Selection =====
+function toggleCard(cardId) {
+    const player = state.players[state.currentPlayer];
+    const idx = player.hand.indexOf(cardId);
 
+    if (idx !== -1) {
+        // Deselect
+        player.hand.splice(idx, 1);
+    } else {
+        // Select
+        const cap = handCapacity(player);
+        if (player.hand.length >= cap) return;
+        if (isCardTaken(cardId)) return;
+        player.hand.push(cardId);
+    }
+
+    buildCardSections();
+    updateAllScores();
+}
+
+// ===== Build Card Sections =====
+function buildCardSections() {
+    const container = document.getElementById('cardSections');
+    container.innerHTML = '';
+
+    // Group cards by suit, filtering by expansion
+    const bySuit = {};
+    CARDS.forEach(card => {
+        const exp = card.set || 'base';
+        if (exp !== 'base' && !state.expansions[exp]) return;
+        if (!bySuit[card.suit]) bySuit[card.suit] = [];
+        bySuit[card.suit].push(card);
+    });
+
+    const player = state.players[state.currentPlayer];
+    const playerHand = player ? player.hand : [];
+    const fullHand = playerHand.length >= handCapacity(player);
+
+    SUIT_ORDER.forEach(suit => {
+        const cards = bySuit[suit];
+        if (!cards || cards.length === 0) return;
+
+        const suitColor = SUIT_COLORS[suit] || '#999';
+        const cardsInSuit = cards.sort((a, b) => a.name.en.localeCompare(b.name.en));
+
+        const details = document.createElement('details');
+        details.className = 'suit-details';
+        details.setAttribute('open', '');
+
+        const summary = document.createElement('summary');
+        summary.className = 'suit-summary';
+        summary.style.background = suitColor;
+        summary.style.color = suit === 'wild' ? '#333' : '#fff';
+
+        const label = document.createElement('span');
+        label.className = 'suit-label';
+        label.textContent = SUIT_LABELS[suit] || suit.toUpperCase();
+        summary.appendChild(label);
+
+        const suitScore = document.createElement('span');
+        suitScore.className = 'suit-score';
+        suitScore.id = 'suitScore-' + suit;
+        suitScore.textContent = '0';
+        suitScore.style.cssText = 'font-size:0.95rem;font-weight:600;';
+        summary.appendChild(suitScore);
+
+        details.appendChild(summary);
+
+        cardsInSuit.forEach(card => {
+            const row = document.createElement('div');
+            row.className = 'card-row';
+            row.id = 'cardRow-' + card.id;
+
+            const inHand = playerHand.includes(card.id);
+            const taken = isCardTaken(card.id);
+            const canSelect = !taken && !fullHand;
+
+            if (inHand) {
+                row.classList.add('selected');
+            } else if (taken) {
+                row.classList.add('taken');
+            } else if (fullHand) {
+                row.classList.add('disabled');
+            }
+            // Suit accent: left border in suit color
+            row.style.borderLeft = '3px solid ' + suitColor;
+
+            // Indicator (empty circle or check)
+            const indicator = document.createElement('span');
+            indicator.className = 'card-indicator';
+            indicator.textContent = inHand ? '✓' : '○';
+            row.appendChild(indicator);
+
+            // Card name
+            const name = document.createElement('span');
+            name.className = 'card-name';
+            name.textContent = card.name.en + ((card.set && card.set !== 'base') ? ' [P]' : '');
+            row.appendChild(name);
+
+            // Base points
+            const baseEl = document.createElement('span');
+            baseEl.className = 'card-base';
+            baseEl.id = 'base-' + card.id;
+            baseEl.textContent = '0';
+            row.appendChild(baseEl);
+
+            // Net bonus/penalty
+            const netEl = document.createElement('span');
+            netEl.className = 'card-net';
+            netEl.id = 'net-' + card.id;
+            netEl.textContent = '';
+            row.appendChild(netEl);
+
+            // Score display
+            const score = document.createElement('span');
+            score.className = 'card-score';
+            score.id = 'pts-' + card.id;
+            score.textContent = '0';
+            row.appendChild(score);
+
+            row.onclick = function() { toggleCard(card.id); };
+            details.appendChild(row);
+        });
+
+        container.appendChild(details);
+    });
+}
+
+// ===== Update Scores =====
+function updateAllScores() {
+    const result = calculateScore(state.currentPlayer);
+    const suitScores = {};
+
+    // Initialize all suits to 0
+    SUIT_ORDER.forEach(suit => { suitScores[suit] = 0; });
+
+    // Update per-card displays and accumulate suit totals
+    CARDS.forEach(card => {
+        const pts = result.cardScores[card.id] || 0;
+        const ptsEl = document.getElementById('pts-' + card.id);
+        if (ptsEl) ptsEl.textContent = pts;
+
+        // Update base points and net bonus display
+        const base = result.cardBase[card.id] !== undefined ? result.cardBase[card.id] : (card.points || 0);
+        const net = result.cardNetBonus[card.id] !== undefined ? result.cardNetBonus[card.id] : 0;
+        const baseEl = document.getElementById('base-' + card.id);
+        if (baseEl) baseEl.textContent = '(' + base + ')';
+        const netEl = document.getElementById('net-' + card.id);
+        if (netEl) {
+            if (net > 0) netEl.textContent = '+' + net;
+            else if (net < 0) netEl.textContent = '' + net;
+            else netEl.textContent = '';
+        }
+
+        // Show change badge on card row if this card has a suit/copy override
+        const row = document.getElementById('cardRow-' + card.id);
+        if (row) {
+            // Remove existing badges
+            const oldBadge = row.querySelector('.card-change-badge');
+            if (oldBadge) oldBadge.remove();
+            const oldBlankBadge = row.querySelector('.card-blanked-badge');
+            if (oldBlankBadge) oldBlankBadge.remove();
+
+            const override = result.suitOverrides && result.suitOverrides[card.id];
+            if (override) {
+                const badge = document.createElement('span');
+                badge.className = 'card-change-badge';
+                badge.textContent = override;
+                const nameEl = row.querySelector('.card-name');
+                if (nameEl) {
+                    nameEl.after(badge);
+                }
+
+                // For copyCard: update the name to show what's being copied
+                if (result.copyCards) {
+                    const match = result.copyCards.find(cc => cc.cardId === card.id);
+                    if (match) {
+                        const target = getCard(match.targetId);
+                        if (target) {
+                            const nameEl = row.querySelector('.card-name');
+                            if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → .*$/, '') + ' → ' + target.name.en;
+                        }
+                    }
+                }
+
+                // For copyNameSuit: update name to show target
+                if (result.copyNameSuits) {
+                    const match = result.copyNameSuits.find(ns => ns.cardId === card.id);
+                    if (match) {
+                        const target = getCard(match.targetId);
+                        if (target) {
+                            const nameEl = row.querySelector('.card-name');
+                            if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → .*$/, '') + ' → ' + target.name.en;
+                        }
+                    }
+                }
+            }
+
+            // For clearsBest: show which card was cleared
+            if (result.clearsBestResults && result.clearsBestResults[card.id]) {
+                const target = getCard(result.clearsBestResults[card.id]);
+                if (target) {
+                    const nameEl = row.querySelector('.card-name');
+                    if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → clears: .*$/, '') + ' → clears: ' + target.name.en;
+                }
+            }
+
+            // Show blanked/zeroed badge if this card is blanked
+            if (result.blanked && result.blanked.includes(card.id)) {
+                const blankBadge = document.createElement('span');
+                blankBadge.className = 'card-blanked-badge';
+                blankBadge.textContent = 'BLANKED';
+                const nameEl = row.querySelector('.card-name');
+                if (nameEl) nameEl.after(blankBadge);
+            } else if (result.zeroedPoints && result.zeroedPoints.includes(card.id)) {
+                const zeroBadge = document.createElement('span');
+                zeroBadge.className = 'card-blanked-badge zeroed';
+                zeroBadge.textContent = '0 BASE';
+                const nameEl = row.querySelector('.card-name');
+                if (nameEl) nameEl.after(zeroBadge);
+            }
+        }
+
+        // Accumulate suit score (only if card is in hand)
+        const player = state.players[state.currentPlayer];
+        if (player && player.hand.includes(card.id)) {
+            const effectiveSuit = result.suitOverrides && result.suitOverrides[card.id] || card.suit;
+            suitScores[effectiveSuit] = (suitScores[effectiveSuit] || 0) + pts;
+        }
+    });
+
+    // Update suit-level score displays
+    SUIT_ORDER.forEach(suit => {
+        const el = document.getElementById('suitScore-' + suit);
+        if (el) el.textContent = suitScores[suit] || 0;
+    });
+
+    // Update summary
+    document.getElementById('totalPoints').textContent = result.total;
+
+    // Show suit/card change info if applicable
+    const changeInfo = document.getElementById('changeSuitInfo');
+    if (changeInfo) {
+        const changes = [];
+
+        if (result.changeSuit) {
+            const target = getCard(result.changeSuit.targetId);
+            const name = target ? target.name.en : result.changeSuit.targetId;
+            changes.push(`♻ ${name}: ${result.changeSuit.from} → ${result.changeSuit.to}`);
+        }
+
+        if (result.copySuits) {
+            result.copySuits.forEach(cs => {
+                const copier = getCard(cs.cardId);
+                const name = copier ? copier.name.en : cs.cardId;
+                changes.push(`♻ ${name}: ${cs.from} → ${cs.to}`);
+            });
+        }
+
+        if (result.copyCards) {
+            result.copyCards.forEach(cc => {
+                const copier = getCard(cc.cardId);
+                const target = getCard(cc.targetId);
+                const cName = copier ? copier.name.en : cc.cardId;
+                const tName = target ? target.name.en : cc.targetId;
+                changes.push(`↻ ${cName} → ${tName} (${cc.to}, ${cc.points}pts)`);
+            });
+        }
+
+        if (result.copyNameSuits) {
+            result.copyNameSuits.forEach(ns => {
+                const copier = getCard(ns.cardId);
+                const target = getCard(ns.targetId);
+                const cName = copier ? copier.name.en : ns.cardId;
+                const tName = target ? target.name.en : ns.targetId;
+                changes.push(`♻ ${cName} → ${tName} (${ns.to})`);
+            });
+        }
+
+        if (changes.length > 0) {
+            changeInfo.innerHTML = changes.map(c => `<div>${c}</div>`).join('');
+            changeInfo.style.display = 'block';
+        } else {
+            changeInfo.style.display = 'none';
+        }
+    }
+
+    // Build suit breakdown in summary
+    const breakdownContainer = document.getElementById('suitBreakdown');
+    breakdownContainer.innerHTML = '';
+    SUIT_ORDER.forEach(suit => {
+        const score = suitScores[suit] || 0;
+        const hasCards = state.players[state.currentPlayer].hand.some(cid => {
+            const c = getCard(cid);
+            const effectiveSuit = result.suitOverrides && result.suitOverrides[cid] || (c && c.suit);
+            return effectiveSuit === suit;
+        });
+        if (!hasCards) return;
+
+        const row = document.createElement('div');
+        row.className = 'suit-breakdown-row';
+
+        const icon = document.createElement('span');
+        icon.className = 'suit-breakdown-icon';
+        icon.style.background = SUIT_COLORS[suit] || '#999';
+        row.appendChild(icon);
+
+        const label = document.createElement('span');
+        label.className = 'suit-breakdown-label';
+        label.textContent = SUIT_LABELS[suit] || suit;
+        row.appendChild(label);
+
+        const val = document.createElement('span');
+        val.className = 'suit-breakdown-value';
+        val.textContent = score;
+        row.appendChild(val);
+
+        breakdownContainer.appendChild(row);
+    });
+}
+
+// ===== Leaderboard =====
+function computePlayerTotal(playerIdx) {
+    const savedPlayer = state.currentPlayer;
+    state.currentPlayer = playerIdx;
+    const result = calculateScore(playerIdx);
+    state.currentPlayer = savedPlayer;
+    return result.total;
+}
+
+function renderLeaderboard() {
+    const container = document.getElementById('leaderboardList');
+    if (!container) return;
+    container.innerHTML = '';
+    // Sort by total descending
+    const totals = state.players.map((p, i) => ({ idx: i, total: computePlayerTotal(i) }));
+    totals.sort((a, b) => b.total - a.total);
+
+    totals.forEach(entry => {
+        const p = state.players[entry.idx];
+        const row = document.createElement('div');
+        row.className = 'leader-row' + (entry.idx === state.currentPlayer ? ' active' : '');
+
+        const color = document.createElement('span');
+        color.className = 'leader-color';
+        color.style.background = PLAYER_COLORS[entry.idx % PLAYER_COLORS.length];
+        row.appendChild(color);
+
+        const name = document.createElement('span');
+        name.className = 'leader-name';
+        name.textContent = p.name;
+        row.appendChild(name);
+
+        const pts = document.createElement('span');
+        pts.className = 'leader-points';
+        pts.textContent = entry.total;
+        row.appendChild(pts);
+
+        container.appendChild(row);
+    });
+}
+
+// ===== Settings Panel =====
 function openSettings() {
-    const panel = document.getElementById('settingsPanel');
-    panel.classList.toggle('open');
-
-    // Sync toggle states
+    // Sync toggle UIs with state
     Object.keys(state.expansions).forEach(key => {
         const row = document.getElementById(expansionRowId(key));
         if (row) row.querySelector('.toggle').classList.toggle('on', state.expansions[key]);
     });
-
-    // Rebuild player list and leaderboard
     rebuildPlayerList();
     renderLeaderboard();
+    document.getElementById('settingsOverlay').classList.add('open');
+    document.getElementById('settingsPanel').classList.add('open');
 }
 
 function closeSettings() {
+    document.getElementById('settingsOverlay').classList.remove('open');
     document.getElementById('settingsPanel').classList.remove('open');
 }
 
+// ===== Expansion Toggle =====
 function expansionRowId(key) {
     return 'exp' + key.charAt(0).toUpperCase() + key.slice(1).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
-window.toggleExpansion = function(key) {
+function toggleExpansion(key) {
     state.expansions[key] = !state.expansions[key];
     const row = document.getElementById(expansionRowId(key));
     if (row) {
@@ -1108,72 +1206,18 @@ window.toggleExpansion = function(key) {
     saveSettings();
     buildCardSections();
     updateAllScores();
-};
-
-function rebuildPlayerList() {
-    const container = document.getElementById('playerList');
-    if (!container) return;
-    container.innerHTML = '';
-    state.players.forEach((p, idx) => {
-        const row = document.createElement('div');
-        row.className = 'settings-row player-row';
-        row.innerHTML = '<span class="settings-label">' + p.name + '</span>';
-        if (state.players.length > 1) {
-            const removeBtn = document.createElement('span');
-            removeBtn.className = 'remove-btn';
-            removeBtn.textContent = t('removePlayer');
-            removeBtn.addEventListener('click', () => removePlayer(idx));
-            row.appendChild(removeBtn);
-        }
-        container.appendChild(row);
-    });
 }
 
-function renderLeaderboard() {
-    const container = document.getElementById('leaderboard');
-    if (!container) return;
-    container.innerHTML = '';
-    const entries = state.players.map((p, idx) => {
-        const result = calculateScore(idx);
-        return { name: p.name, score: result ? result.total : 0, idx };
-    });
-    entries.sort((a, b) => b.score - a.score);
-    entries.forEach(e => {
-        const row = document.createElement('div');
-        row.className = 'lb-row' + (e.idx === state.currentPlayer ? ' active' : '');
-        row.innerHTML = '<span>' + e.name + '</span><span>' + e.score + '</span>';
-        row.addEventListener('click', () => {
-            state.currentPlayer = e.idx;
-            closeSettings();
-            updateActivePlayerName();
-            buildCardSections();
-            updateAllScores();
-        });
-        container.appendChild(row);
-    });
+// ===== Persist Settings =====
+function saveSettings() {
+    try {
+        localStorage.setItem('fantasySettings', JSON.stringify({
+            expansions: state.expansions,
+        }));
+    } catch (e) { /* ignore */ }
 }
 
-function removePlayer(idx) {
-    if (!confirm(t('removePlayerConfirm'))) return;
-    state.players.splice(idx, 1);
-    if (state.currentPlayer >= state.players.length) {
-        state.currentPlayer = state.players.length - 1;
-    }
-    rebuildPlayerList();
-    renderLeaderboard();
-    updateActivePlayerName();
-    buildCardSections();
-    updateAllScores();
-}
-
-window.addPlayer = function() {
-    const newIdx = state.players.length;
-    state.players.push({ name: defaultPlayerName(newIdx), hand: [] });
-    rebuildPlayerList();
-    renderLeaderboard();
-    closeSettings();
-};
-
+// ===== New Game =====
 function newGame() {
     if (!confirm(t('confirmNewGame'))) return;
     state.players = [{ name: defaultPlayerName(0), hand: [] }];
@@ -1186,11 +1230,17 @@ function newGame() {
     updateAllScores();
 }
 
-function updateActivePlayerName() {
-    const el = document.getElementById('currentPlayerName');
-    if (el) el.textContent = state.players[state.currentPlayer]?.name || '';
-}
-
 // ===== Init =====
-buildCardSections();
-updateAllScores();
+window.addEventListener('DOMContentLoaded', function() {
+    // Clean up any persisted state from previous versions
+    try {
+        localStorage.removeItem('fantasyRealmSettings');
+        localStorage.removeItem('fantasyRealmLang');
+    } catch (e) { /* ignore */ }
+
+    translateUI();
+    updateLangButtons();
+    rebuildPlayerList();
+    buildCardSections();
+    updateAllScores();
+});
