@@ -79,7 +79,7 @@ function getAvailableCards() {
 const SUIT_DISPLAY_ORDER = ['wizard', 'flood', 'army', 'weather', 'land', 'flame', 'weapon', 'artifact', 'leader', 'beast', 'wild'];
 
 // ===== DOM =====
-const app = document.getElementById('app');
+const cardSectionsEl = document.getElementById('cardSections');
 
 function buildCardSections() {
     // Remove old sections
@@ -154,7 +154,7 @@ function buildCardSections() {
             grid.appendChild(row);
         });
         section.appendChild(grid);
-        app.appendChild(section);
+        cardSectionsEl.appendChild(section);
     });
 }
 
