@@ -867,7 +867,7 @@ function buildCardSections() {
             // Card name
             const name = document.createElement('span');
             name.className = 'card-name';
-            name.textContent = card.name.en;
+            name.textContent = card.name.en + ((card.set && card.set !== 'base') ? ' [P]' : '');
             row.appendChild(name);
 
             // Base points
