@@ -88,7 +88,7 @@ function defaultPlayerName(index) {
 let state = {
     currentPlayer: 0,
     players: [{ name: defaultPlayerName(0), hand: [] }],
-    expansions: { 'promo-jester': true, 'promo-phoenix': true },
+    expansions: { 'promo-jester': false, 'promo-phoenix': false },
 };
 
 // ===== Load saved settings =====
@@ -1128,8 +1128,7 @@ function renderLeaderboard() {
 function openSettings() {
     // Sync toggle UIs with state
     Object.keys(state.expansions).forEach(key => {
-        const id = 'exp' + key.charAt(0).toUpperCase() + key.slice(1).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-        const row = document.getElementById(id);
+        const row = document.getElementById(expansionRowId(key));
         if (row) row.querySelector('.toggle').classList.toggle('on', state.expansions[key]);
     });
     rebuildPlayerList();
@@ -1144,9 +1143,13 @@ function closeSettings() {
 }
 
 // ===== Expansion Toggle =====
+function expansionRowId(key) {
+    return 'exp' + key.charAt(0).toUpperCase() + key.slice(1).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
+
 function toggleExpansion(key) {
     state.expansions[key] = !state.expansions[key];
-    const row = document.getElementById('exp' + key.charAt(0).toUpperCase() + key.slice(1));
+    const row = document.getElementById(expansionRowId(key));
     if (row) {
         row.querySelector('.toggle').classList.toggle('on', state.expansions[key]);
     }
