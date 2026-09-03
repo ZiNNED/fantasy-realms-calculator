@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fantasy Realms Calculator</title>
-    <!-- Cache busting: v=14 -->
-    <link rel="stylesheet" href="style.css?v=14">
+    <!-- Cache busting: v=15 -->
+    <link rel="stylesheet" href="style.css?v=15">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
     <link rel="apple-touch-icon" sizes="192x192" href="assets/icon-192.png">
@@ -40,6 +40,14 @@
             <span class="settings-add-plus">+</span>
             <span data-i18n="addPlayer">Add Player</span>
         </button>
+    </div>
+
+    <div class="settings-group">
+        <div class="settings-group-title" data-i18n="expansions">Expansions</div>
+        <div class="settings-row" id="expPromo" onclick="toggleExpansion('promo')">
+            <span class="settings-label">&#x2728; Promo Cards</span>
+            <span class="toggle on"></span>
+        </div>
     </div>
 
     <div class="settings-group">
@@ -84,8 +92,8 @@
     <div style="height: 40px;"></div>
 </div>
 
-<script src="cards.js?v=14"></script>
-<script src="app.js?v=14"></script>
+<script src="cards.js?v=15"></script>
+<script src="app.js?v=15"></script>
 
 <script>
     if ('serviceWorker' in navigator) {

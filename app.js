@@ -88,7 +88,20 @@ function defaultPlayerName(index) {
 let state = {
     currentPlayer: 0,
     players: [{ name: defaultPlayerName(0), hand: [] }],
+    expansions: { promo: true },
 };
+
+// ===== Load saved settings =====
+function loadSettings() {
+    try {
+        const saved = localStorage.getItem('fantasySettings');
+        if (saved) {
+            const data = JSON.parse(saved);
+            if (data.expansions) state.expansions = data.expansions;
+        }
+    } catch (e) { /* ignore */ }
+}
+loadSettings();
 
 // ===== Helpers =====
 function getCard(id) {
@@ -783,9 +796,11 @@ function buildCardSections() {
     const container = document.getElementById('cardSections');
     container.innerHTML = '';
 
-    // Group cards by suit
+    // Group cards by suit, filtering by expansion
     const bySuit = {};
     CARDS.forEach(card => {
+        const exp = card.set || 'base';
+        if (exp !== 'base' && !state.expansions[exp]) return;
         if (!bySuit[card.suit]) bySuit[card.suit] = [];
         bySuit[card.suit].push(card);
     });
@@ -1111,6 +1126,9 @@ function renderLeaderboard() {
 
 // ===== Settings Panel =====
 function openSettings() {
+    // Sync toggle UI with state
+    const toggle = document.getElementById('expPromo');
+    if (toggle) toggle.querySelector('.toggle').classList.toggle('on', state.expansions.promo);
     rebuildPlayerList();
     renderLeaderboard();
     document.getElementById('settingsOverlay').classList.add('open');
@@ -1120,6 +1138,34 @@ function openSettings() {
 function closeSettings() {
     document.getElementById('settingsOverlay').classList.remove('open');
     document.getElementById('settingsPanel').classList.remove('open');
+}
+
+// ===== Expansion Toggle =====
+function toggleExpansion(key) {
+    state.expansions[key] = !state.expansions[key];
+    const row = document.getElementById('exp' + key.charAt(0).toUpperCase() + key.slice(1));
+    if (row) {
+        row.querySelector('.toggle').classList.toggle('on', state.expansions[key]);
+    }
+    // Remove cards from all hands if expansion is being disabled
+    if (!state.expansions[key]) {
+        const disabledIds = new Set(CARDS.filter(c => (c.set || 'base') !== 'base' && c.set === key).map(c => c.id));
+        state.players.forEach(p => {
+            p.hand = p.hand.filter(id => !disabledIds.has(id));
+        });
+    }
+    saveSettings();
+    buildCardSections();
+    updateAllScores();
+}
+
+// ===== Persist Settings =====
+function saveSettings() {
+    try {
+        localStorage.setItem('fantasySettings', JSON.stringify({
+            expansions: state.expansions,
+        }));
+    } catch (e) { /* ignore */ }
 }
 
 // ===== New Game =====

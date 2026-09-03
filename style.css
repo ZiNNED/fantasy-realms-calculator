@@ -568,6 +568,46 @@ html, body {
     font-weight: 600;
 }
 
+/* ===== Settings: Toggle Switch ===== */
+.settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s;
+}
+.settings-row:hover { background: var(--hover-bg); }
+
+.settings-label {
+    font-size: 0.9rem;
+}
+
+.toggle {
+    width: 36px;
+    height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: 0.2s;
+    flex-shrink: 0;
+}
+.toggle.on { background: var(--green); }
+.toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: 0.2s;
+}
+.toggle.on::after { left: 18px; }
+
 /* ===== Responsive ===== */
 @media (max-width: 480px) {
     .scroll-content {
