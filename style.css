@@ -403,6 +403,22 @@ html, body {
     white-space: nowrap;
 }
 
+.card-base {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.card-net {
+    font-size: 0.82rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    white-space: nowrap;
+    min-width: 24px;
+    text-align: right;
+}
+
 .card-change-badge {
     font-size: 0.72rem;
     font-weight: 700;

@@ -362,6 +362,8 @@ function scoreCards(cards) {
     // ===== Phase 4: Score active cards =====
     let total = 0;
     const cardScores = {};
+    const cardBase = {};
+    const cardNetBonus = {};
 
     // Build effective base points (zeroedPoints cards → 0 for baseBest/baseSum/runs)
     const effectivePoints = {};
@@ -369,6 +371,7 @@ function scoreCards(cards) {
 
     activeHand.forEach(card => {
         let cardScore = effectivePoints[card.id];
+        cardBase[card.id] = effectivePoints[card.id];
         const isCleared = clearedSuits.has(card.suit) || clearedCards.has(card.id);
 
         // ----- Bonuses -----
@@ -531,11 +534,12 @@ function scoreCards(cards) {
 
         total += cardScore;
         cardScores[card.id] = cardScore;
+        cardNetBonus[card.id] = cardScore - cardBase[card.id];
     });
 
-    blanked.forEach(cid => { cardScores[cid] = 0; });
+    blanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
 
-    return { total, cardScores, blanked: [...blanked], zeroedPoints: [...zeroedPoints] };
+    return { total, cardScores, cardBase, cardNetBonus, blanked: [...blanked], zeroedPoints: [...zeroedPoints] };
 }
 
 function calculateScore(playerIdx) {
@@ -851,6 +855,20 @@ function buildCardSections() {
             name.textContent = card.name.en;
             row.appendChild(name);
 
+            // Base points
+            const baseEl = document.createElement('span');
+            baseEl.className = 'card-base';
+            baseEl.id = 'base-' + card.id;
+            baseEl.textContent = '0';
+            row.appendChild(baseEl);
+
+            // Net bonus/penalty
+            const netEl = document.createElement('span');
+            netEl.className = 'card-net';
+            netEl.id = 'net-' + card.id;
+            netEl.textContent = '';
+            row.appendChild(netEl);
+
             // Score display
             const score = document.createElement('span');
             score.className = 'card-score';
@@ -879,6 +897,18 @@ function updateAllScores() {
         const pts = result.cardScores[card.id] || 0;
         const ptsEl = document.getElementById('pts-' + card.id);
         if (ptsEl) ptsEl.textContent = pts;
+
+        // Update base points and net bonus display
+        const base = result.cardBase[card.id] !== undefined ? result.cardBase[card.id] : (card.points || 0);
+        const net = result.cardNetBonus[card.id] !== undefined ? result.cardNetBonus[card.id] : 0;
+        const baseEl = document.getElementById('base-' + card.id);
+        if (baseEl) baseEl.textContent = '(' + base + ')';
+        const netEl = document.getElementById('net-' + card.id);
+        if (netEl) {
+            if (net > 0) netEl.textContent = '+' + net;
+            else if (net < 0) netEl.textContent = '' + net;
+            else netEl.textContent = '';
+        }
 
         // Show change badge on card row if this card has a suit/copy override
         const row = document.getElementById('cardRow-' + card.id);
