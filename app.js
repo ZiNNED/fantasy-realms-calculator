@@ -88,7 +88,7 @@ function defaultPlayerName(index) {
 let state = {
     currentPlayer: 0,
     players: [{ name: defaultPlayerName(0), hand: [] }],
-    expansions: { promo: true },
+    expansions: { 'promo-jester': true, 'promo-phoenix': true },
 };
 
 // ===== Load saved settings =====
@@ -1126,9 +1126,12 @@ function renderLeaderboard() {
 
 // ===== Settings Panel =====
 function openSettings() {
-    // Sync toggle UI with state
-    const toggle = document.getElementById('expPromo');
-    if (toggle) toggle.querySelector('.toggle').classList.toggle('on', state.expansions.promo);
+    // Sync toggle UIs with state
+    Object.keys(state.expansions).forEach(key => {
+        const id = 'exp' + key.charAt(0).toUpperCase() + key.slice(1).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+        const row = document.getElementById(id);
+        if (row) row.querySelector('.toggle').classList.toggle('on', state.expansions[key]);
+    });
     rebuildPlayerList();
     renderLeaderboard();
     document.getElementById('settingsOverlay').classList.add('open');

@@ -101,7 +101,7 @@ const CARDS = [
     {
         id: 'jester',
         name: { en: 'Jester' },
-        set: 'promo',
+        set: 'promo-jester',
         suit: 'wizard',
         points: 3,
         bonus: {
@@ -717,7 +717,7 @@ const CARDS = [
     {
         id: 'phoenix',
         name: { en: 'Phoenix' },
-        set: 'promo',
+        set: 'promo-phoenix',
         suit: 'beast',
         points: 14,
         bonus: { mode: 'sum', rules: [

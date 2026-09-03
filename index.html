@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Fantasy Realms Calculator</title>
-    <!-- Cache busting: v=15 -->
-    <link rel="stylesheet" href="style.css?v=15">
+    <!-- Cache busting: v=16 -->
+    <link rel="stylesheet" href="style.css?v=16">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
     <link rel="apple-touch-icon" sizes="192x192" href="assets/icon-192.png">
@@ -43,9 +43,13 @@
     </div>
 
     <div class="settings-group">
-        <div class="settings-group-title" data-i18n="expansions">Expansions</div>
-        <div class="settings-row" id="expPromo" onclick="toggleExpansion('promo')">
-            <span class="settings-label">&#x2728; Promo Cards</span>
+        <div class="settings-group-title" data-i18n="expansions">Promo Cards</div>
+        <div class="settings-row" id="expPromoJester" onclick="toggleExpansion('promo-jester')">
+            <span class="settings-label">🎭 Jester</span>
+            <span class="toggle on"></span>
+        </div>
+        <div class="settings-row" id="expPromoPhoenix" onclick="toggleExpansion('promo-phoenix')">
+            <span class="settings-label">🔥 Phoenix</span>
             <span class="toggle on"></span>
         </div>
     </div>
@@ -92,8 +96,8 @@
     <div style="height: 40px;"></div>
 </div>
 
-<script src="cards.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="cards.js?v=16"></script>
+<script src="app.js?v=16"></script>
 
 <script>
     if ('serviceWorker' in navigator) {
