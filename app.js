@@ -242,6 +242,69 @@ function matchesFilter(card, filter) {
     return false;
 }
 
+function computeBlankedAndActive(cards, clearedSuits, clearedCards) {
+    // Re-compute blanked cards given clears context (used for normal scoring AND
+    // per-candidate clearsBest evaluation, where suppressing one card can revive others).
+    const blanked = new Set();
+    cards.forEach(card => {
+        if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
+        (card.penalty || []).forEach(rule => {
+            if (rule.type === 'blanks' && rule.of) {
+                if (rule.mode === 'allExcept') {
+                    cards.forEach(candidate => {
+                        const matchesSuit = rule.of.suits && rule.of.suits.includes(candidate.suit);
+                        const matchesIds = rule.of.ids && rule.of.ids.includes(candidate.id);
+                        if (matchesSuit || matchesIds) return;
+                        blanked.add(candidate.id);
+                    });
+                } else {
+                    let targetSuits = [];
+                    if (rule.of.suits) targetSuits = rule.of.suits;
+                    else if (rule.of.suit) targetSuits = [rule.of.suit];
+                    if (targetSuits.length > 0) {
+                        cards.forEach(candidate => {
+                            if (rule.of.other && candidate.id === card.id) return;
+                            if (targetSuits.includes(candidate.suit)) {
+                                if (rule.of.except && rule.of.except.includes(candidate.id)) return;
+                                blanked.add(candidate.id);
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    });
+
+    const postBlankHand = cards.filter(c => !blanked.has(c.id));
+    cards.forEach(card => {
+        if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
+        (card.penalty || []).forEach(rule => {
+            if (rule.type === 'selfBlank' && rule.of) {
+                const resolvedFilter = { ...rule.of };
+                let count = postBlankHand.filter(c => matchesFilter(c, resolvedFilter)).length;
+                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+                if (rule.when === 'present') {
+                    if (count > 0) blanked.add(card.id);
+                } else {
+                    if (count === 0) blanked.add(card.id);
+                }
+            }
+        });
+    });
+
+    const zeroedPoints = new Set();
+    for (const id of blanked) {
+        const card = cards.find(c => c.id === id);
+        if (card && (card.penalty || []).some(r => r.type === 'partialBlank')) {
+            blanked.delete(id);
+            zeroedPoints.add(id);
+        }
+    }
+
+    const activeHand = cards.filter(c => !blanked.has(c.id));
+    return { blanked, zeroedPoints, activeHand };
+}
+
 function scoreCards(cards) {
     // Take an array of card objects, compute full scoring (blanks → clears → bonus → penalty)
     //
@@ -279,73 +342,9 @@ function scoreCards(cards) {
         });
     });
 
-    // ===== Phase 2: Compute blanked cards =====
+    // ===== Phase 2-3: Compute blanked cards & active hand =====
     // Skip blanking penalties from cards whose suit is cleared (e.g. Protection Rune)
-    const blanked = new Set();
-    cards.forEach(card => {
-        if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
-        (card.penalty || []).forEach(rule => {
-            if (rule.type === 'blanks' && rule.of) {
-                if (rule.mode === 'allExcept') {
-                    cards.forEach(candidate => {
-                        const matchesSuit = rule.of.suits && rule.of.suits.includes(candidate.suit);
-                        const matchesIds = rule.of.ids && rule.of.ids.includes(candidate.id);
-                        if (matchesSuit || matchesIds) return;
-                        blanked.add(candidate.id);
-                    });
-                } else {
-                    // Collect candidate suits from rule.of.suit (single) or rule.of.suits (array)
-                    let targetSuits = [];
-                    if (rule.of.suits) targetSuits = rule.of.suits;
-                    else if (rule.of.suit) targetSuits = [rule.of.suit];
-
-                    if (targetSuits.length > 0) {
-                        cards.forEach(candidate => {
-                            if (rule.of.other && candidate.id === card.id) return;
-                            if (targetSuits.includes(candidate.suit)) {
-                                if (rule.of.except && rule.of.except.includes(candidate.id)) return;
-                                blanked.add(candidate.id);
-                            }
-                        });
-                    }
-                }
-            }
-        });
-    });
-
-    // ===== Phase 2b: Self-blank — evaluate against the hand AFTER general blanks =====
-    // A blanked card does not exist for counting purposes, so selfBlank checks
-    // must look at the remaining (non-blanked) hand only.
-    // Also skip selfBlank from cards whose suit is cleared.
-    const postBlankHand = cards.filter(c => !blanked.has(c.id));
-    cards.forEach(card => {
-        if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
-        (card.penalty || []).forEach(rule => {
-            if (rule.type === 'selfBlank' && rule.of) {
-                const resolvedFilter = { ...rule.of };
-                let count = postBlankHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
-                if (rule.when === 'present') {
-                    if (count > 0) blanked.add(card.id);
-                } else {
-                    if (count === 0) blanked.add(card.id);
-                }
-            }
-        });
-    });
-
-    // ----- Partial blank cards: when blanked, keep suits active but zero their base points -----
-    const zeroedPoints = new Set();
-    for (const id of blanked) {
-        const card = cards.find(c => c.id === id);
-        if (card && (card.penalty || []).some(r => r.type === 'partialBlank')) {
-            blanked.delete(id);
-            zeroedPoints.add(id);
-        }
-    }
-
-    // ===== Phase 3: Active hand = non-blanked cards only =====
-    const activeHand = cards.filter(c => !blanked.has(c.id));
+    const { blanked, zeroedPoints, activeHand } = computeBlankedAndActive(cards, clearedSuits, clearedCards);
 
     // ===== Phase 4: Recompute clears from active cards only =====
     // If a card with a clears effect was blanked, its clears should not apply.
@@ -376,9 +375,35 @@ function scoreCards(cards) {
     });
 
     // ===== Phase 4b: clearsBest brute-force =====
-    // Try each possible target, compute full score, and pick the one that gives the highest total
+    // Try each possible target, recomputing blanking per candidate: suppressing a card
+    // (e.g. Great Flood) can revive cards it blanked, which must count toward the score.
     const effectivePoints = {};
     activeHand.forEach(c => { effectivePoints[c.id] = zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
+
+    const recomputeClears = (hand) => {
+        const cSuits = new Set();
+        const cCards = new Set();
+        const cTargets = new Map();
+        cTargets.set('*', new Set());
+        hand.forEach(card => {
+            const br = (card.bonus && card.bonus.rules) || [];
+            br.forEach(r => {
+                if (r.type === 'clears' && r.suit) {
+                    if (r.suit === 'all') SUIT_ORDER.forEach(s => cSuits.add(s));
+                    else cSuits.add(r.suit);
+                }
+                if (r.type === 'clearsTarget' && r.suit) {
+                    if (r.on && r.on.suit) {
+                        if (!cTargets.has(r.on.suit)) cTargets.set(r.on.suit, new Set());
+                        cTargets.get(r.on.suit).add(r.suit);
+                    } else {
+                        cTargets.get('*').add(r.suit);
+                    }
+                }
+            });
+        });
+        return { clearedSuits: cSuits, clearedCards: cCards, clearedTargets: cTargets };
+    };
 
     const clearsBestResults = {};
     activeHand.forEach(card => {
@@ -389,8 +414,14 @@ function scoreCards(cards) {
                 let bestTotal = -Infinity;
                 let bestCard = null;
                 candidates.forEach(candidate => {
+                    // Re-evaluate blanking with this candidate's penalties suppressed:
+                    // its blanking effects no longer apply, so previously blanked cards revive.
                     const testCleared = new Set([...activeClearedCards, candidate.id]);
-                    const result = computeScore(activeHand, effectivePoints, activeClearedSuits, testCleared, activeClearedTargets, _extraSuitsMap);
+                    const { blanked: b2, zeroedPoints: z2, activeHand: ah2 } = computeBlankedAndActive(cards, clearedSuits, testCleared);
+                    const ac2 = recomputeClears(ah2);
+                    const pts2 = {};
+                    ah2.forEach(c => { pts2[c.id] = z2.has(c.id) ? 0 : (c.points || 0); });
+                    const result = computeScore(ah2, pts2, ac2.clearedSuits, ac2.clearedCards, ac2.clearedTargets, _extraSuitsMap);
                     if (result.total > bestTotal) {
                         bestTotal = result.total;
                         bestCard = candidate;
@@ -405,12 +436,27 @@ function scoreCards(cards) {
     });
 
     // ===== Phase 5: Score active cards =====
-    const finalResult = computeScore(activeHand, effectivePoints, activeClearedSuits, activeClearedCards, activeClearedTargets, _extraSuitsMap);
+    // If clearsBest suppressed any cards, recompute final blanked state so revived
+    // cards are scored and displayed as active in the UI.
+    let finalBlanked = blanked;
+    let finalZeroed = zeroedPoints;
+    let finalResult;
+    if (Object.keys(clearsBestResults).length > 0) {
+        const fb = computeBlankedAndActive(cards, clearedSuits, activeClearedCards);
+        finalBlanked = fb.blanked;
+        finalZeroed = fb.zeroedPoints;
+        const ac = recomputeClears(fb.activeHand);
+        const pts = {};
+        fb.activeHand.forEach(c => { pts[c.id] = fb.zeroedPoints.has(c.id) ? 0 : (c.points || 0); });
+        finalResult = computeScore(fb.activeHand, pts, ac.clearedSuits, ac.clearedCards, ac.clearedTargets, _extraSuitsMap);
+    } else {
+        finalResult = computeScore(activeHand, effectivePoints, activeClearedSuits, activeClearedCards, activeClearedTargets, _extraSuitsMap);
+    }
     let { total, cardScores, cardBase, cardNetBonus } = finalResult;
 
-    blanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
+    finalBlanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
 
-    return { total, cardScores, cardBase, cardNetBonus, blanked: [...blanked], zeroedPoints: [...zeroedPoints], clearsBestResults };
+    return { total, cardScores, cardBase, cardNetBonus, blanked: [...finalBlanked], zeroedPoints: [...finalZeroed], clearsBestResults };
     }
 
     function computeScore(activeHand, effectivePoints, clearedSuits, clearedCards, clearedTargets, extraSuitsMap) {
