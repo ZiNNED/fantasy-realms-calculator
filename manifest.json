@@ -1,6 +1,6 @@
 {
     "name": "Fantasy Realms Calculator",
-    "short_name": "Fantasy Realms",
+    "short_name": "Fantasy Realms Calculator",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",
