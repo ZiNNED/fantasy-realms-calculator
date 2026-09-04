@@ -1,13 +1,13 @@
 // Fantasy Realms Calculator — Service Worker
-const CACHE_VERSION = 'v27';
+const CACHE_VERSION = 'v28';
 const CACHE_NAME = 'fantasy-realms-' + CACHE_VERSION;
 
 const PRECACHE_URLS = [
     '/',
     '/index.html',
-    '/app.js?v=27',
-    '/cards.js?v=27',
-    '/style.css?v=27',
+    '/app.js?v=28',
+    '/cards.js?v=28',
+    '/style.css?v=28',
     '/manifest.json',
     '/favicon.ico',
     '/assets/icon-192.png',

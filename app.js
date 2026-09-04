@@ -1069,6 +1069,19 @@ function updateAllScores() {
                 }
             }
 
+            // For changeSuit: show which card was changed and the new suit
+            // The card with the changeSuit bonus (e.g. Book of Changes) displays the change it made
+            if (result.changeSuit && result.changeSuit.targetId) {
+                const hasChangeSuit = (card.bonus && card.bonus.rules || []).some(r => r.type === 'changeSuit');
+                if (hasChangeSuit) {
+                    const target = getCard(result.changeSuit.targetId);
+                    if (target) {
+                        const nameEl = row.querySelector('.card-name');
+                        if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → changes: .*$/, '') + ' → changes: ' + target.name.en + ' to ' + result.changeSuit.to;
+                    }
+                }
+            }
+
             // Show blanked/zeroed badge if this card is blanked
             if (result.blanked && result.blanked.includes(card.id)) {
                 const blankBadge = document.createElement('span');
