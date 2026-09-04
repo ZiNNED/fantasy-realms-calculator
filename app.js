@@ -1035,49 +1035,48 @@ function updateAllScores() {
                     nameEl.after(badge);
                 }
 
-                // For copyCard: update the name to show what's being copied
+                // For copyCard: display using score-summary format (e.g. ♻ Knight (army, 12pts))
                 if (result.copyCards) {
                     const match = result.copyCards.find(cc => cc.cardId === card.id);
                     if (match) {
                         const target = getCard(match.targetId);
                         if (target) {
                             const nameEl = row.querySelector('.card-name');
-                            if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → .*$/, '') + ' → ' + target.name.en;
+                            if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ ♻ .*$| ↻ .*$/, '') + ' ♻ ' + target.name.en + ' (' + match.to + ', ' + match.points + 'pts)';
                         }
                     }
                 }
 
-                // For copyNameSuit: update name to show target
+                // For copyNameSuit: display using score-summary format (e.g. ♻ Queen (leader))
                 if (result.copyNameSuits) {
                     const match = result.copyNameSuits.find(ns => ns.cardId === card.id);
                     if (match) {
                         const target = getCard(match.targetId);
                         if (target) {
                             const nameEl = row.querySelector('.card-name');
-                            if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → .*$/, '') + ' → ' + target.name.en;
+                            if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ ♻ .*$| ↻ .*$/, '') + ' ♻ ' + target.name.en + ' (' + match.to + ')';
                         }
                     }
                 }
             }
 
-            // For clearsBest: show which card was cleared
+            // For clearsBest: display using ♻ format (e.g. ♻ clears: Great Flood)
             if (result.clearsBestResults && result.clearsBestResults[card.id]) {
                 const target = getCard(result.clearsBestResults[card.id]);
                 if (target) {
                     const nameEl = row.querySelector('.card-name');
-                    if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → clears: .*$/, '') + ' → clears: ' + target.name.en;
+                    if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ ♻ .*$| ↻ .*$/, '') + ' ♻ clears: ' + target.name.en;
                 }
             }
 
-            // For changeSuit: show which card was changed and the new suit
-            // The card with the changeSuit bonus (e.g. Book of Changes) displays the change it made
+            // For changeSuit: display using score-summary format (e.g. ♻ Queen: leader → army)
             if (result.changeSuit && result.changeSuit.targetId) {
                 const hasChangeSuit = (card.bonus && card.bonus.rules || []).some(r => r.type === 'changeSuit');
                 if (hasChangeSuit) {
                     const target = getCard(result.changeSuit.targetId);
                     if (target) {
                         const nameEl = row.querySelector('.card-name');
-                        if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ → changes: .*$/, '') + ' → changes: ' + target.name.en + ' to ' + result.changeSuit.to;
+                        if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ ♻ .*$| ↻ .*$/, '') + ' ♻ ' + target.name.en + ': ' + result.changeSuit.from + ' → ' + result.changeSuit.to;
                     }
                 }
             }
