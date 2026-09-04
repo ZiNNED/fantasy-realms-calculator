@@ -463,11 +463,11 @@ function scoreCards(cards) {
     } else {
         finalResult = computeScore(activeHand, effectivePoints, activeClearedSuits, activeClearedCards, activeClearedTargets, _extraSuitsMap);
     }
-    let { total, cardScores, cardBase, cardNetBonus } = finalResult;
+    let { total, cardScores, cardBase, cardNetBonus, baseBestPicks } = finalResult;
 
     finalBlanked.forEach(cid => { cardScores[cid] = 0; cardBase[cid] = 0; cardNetBonus[cid] = 0; });
 
-    return { total, cardScores, cardBase, cardNetBonus, blanked: [...finalBlanked], zeroedPoints: [...finalZeroed], clearsBestResults };
+    return { total, cardScores, cardBase, cardNetBonus, baseBestPicks, blanked: [...finalBlanked], zeroedPoints: [...finalZeroed], clearsBestResults };
     }
 
     function computeScore(activeHand, effectivePoints, clearedSuits, clearedCards, clearedTargets, extraSuitsMap) {
@@ -475,6 +475,7 @@ function scoreCards(cards) {
         const cardScores = {};
         const cardBase = {};
         const cardNetBonus = {};
+        let baseBestPicks;
 
         activeHand.forEach(card => {
             let cardScore = effectivePoints[card.id];
@@ -577,7 +578,10 @@ function scoreCards(cards) {
                     } else if (rule.per === 'baseBest') {
                         const matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
                         if (matching.length > 0) {
-                            rulePoints = Math.max(...matching.map(c => effectivePoints[c.id]));
+                            const bestCard = matching.reduce((a, b) => effectivePoints[a.id] >= effectivePoints[b.id] ? a : b);
+                            rulePoints = effectivePoints[bestCard.id];
+                            if (!baseBestPicks) baseBestPicks = {};
+                            baseBestPicks[card.id] = bestCard.id;
                         }
                     } else if (rule.per === 'baseSum') {
                         let matching = activeHand.filter(c => matchesFilter(c, resolvedFilter));
@@ -643,7 +647,7 @@ function scoreCards(cards) {
             cardNetBonus[card.id] = cardScore - cardBase[card.id];
         });
 
-        return { total, cardScores, cardBase, cardNetBonus };
+        return { total, cardScores, cardBase, cardNetBonus, baseBestPicks };
     }
 
 function calculateScore(playerIdx) {
@@ -1078,6 +1082,15 @@ function updateAllScores() {
                         const nameEl = row.querySelector('.card-name');
                         if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ ♻ .*$| ↻ .*$/, '') + ' ♻ ' + target.name.en + ': ' + result.changeSuit.from + ' → ' + result.changeSuit.to;
                     }
+                }
+            }
+
+            // For baseBest: show which card it uses (e.g. Fountain of Life picks best base from allowed suits)
+            if (result.baseBestPicks && result.baseBestPicks[card.id]) {
+                const target = getCard(result.baseBestPicks[card.id]);
+                if (target) {
+                    const nameEl = row.querySelector('.card-name');
+                    if (nameEl) nameEl.textContent = nameEl.textContent.replace(/ ♻ .*$| ↻ .*$/, '') + ' ♻ best: ' + target.name.en;
                 }
             }
 
