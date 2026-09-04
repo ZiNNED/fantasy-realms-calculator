@@ -499,7 +499,31 @@ function scoreCards(cards) {
                     }
 
                     let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                    if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+                    // For per: 'each' with a suits filter, count each matching suit per card
+                    // (cards with extra suits contribute multiple times, e.g. Phoenix = beast + flame)
+                    if (rule.per === 'each' && resolvedFilter.suits && Array.isArray(resolvedFilter.suits)) {
+                        count = 0;
+                        activeHand.forEach(c => {
+                            if (resolvedFilter.suits.includes(c.suit)) count++;
+                            if (_extraSuitsMap && _extraSuitsMap[c.id]) {
+                                _extraSuitsMap[c.id].forEach(s => {
+                                    if (resolvedFilter.suits.includes(s)) count++;
+                                });
+                            }
+                        });
+                        if (resolvedFilter.other) {
+                            let selfCount = 0;
+                            if (resolvedFilter.suits.includes(card.suit)) selfCount++;
+                            if (_extraSuitsMap && _extraSuitsMap[card.id]) {
+                                _extraSuitsMap[card.id].forEach(s => {
+                                    if (resolvedFilter.suits.includes(s)) selfCount++;
+                                });
+                            }
+                            count -= selfCount;
+                        }
+                    } else if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) {
+                        count--;
+                    }
 
                     let rulePoints = 0;
 
@@ -626,7 +650,31 @@ function scoreCards(cards) {
                     }
 
                     let count = activeHand.filter(c => matchesFilter(c, resolvedFilter)).length;
-                    if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) count--;
+                    // For per: 'each' with a suits filter, count each matching suit per card
+                    // (cards with extra suits contribute multiple times, e.g. Phoenix = beast + flame)
+                    if (rule.per === 'each' && resolvedFilter.suits && Array.isArray(resolvedFilter.suits)) {
+                        count = 0;
+                        activeHand.forEach(c => {
+                            if (resolvedFilter.suits.includes(c.suit)) count++;
+                            if (_extraSuitsMap && _extraSuitsMap[c.id]) {
+                                _extraSuitsMap[c.id].forEach(s => {
+                                    if (resolvedFilter.suits.includes(s)) count++;
+                                });
+                            }
+                        });
+                        if (resolvedFilter.other) {
+                            let selfCount = 0;
+                            if (resolvedFilter.suits.includes(card.suit)) selfCount++;
+                            if (_extraSuitsMap && _extraSuitsMap[card.id]) {
+                                _extraSuitsMap[card.id].forEach(s => {
+                                    if (resolvedFilter.suits.includes(s)) selfCount++;
+                                });
+                            }
+                            count -= selfCount;
+                        }
+                    } else if (resolvedFilter.other && matchesFilter(card, resolvedFilter)) {
+                        count--;
+                    }
 
                     if (rule.per === 'each') {
                         cardScore += Math.max(0, count) * rule.points;
