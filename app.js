@@ -242,7 +242,7 @@ function matchesFilter(card, filter) {
     return false;
 }
 
-function computeBlankedAndActive(cards, clearedSuits, clearedCards) {
+function computeBlankedAndActive(cards, clearedSuits, clearedCards, clearedTargets) {
     // Re-compute blanked cards given clears context (used for normal scoring AND
     // per-candidate clearsBest evaluation, where suppressing one card can revive others).
     const blanked = new Set();
@@ -250,6 +250,17 @@ function computeBlankedAndActive(cards, clearedSuits, clearedCards) {
         if (clearedSuits.has(card.suit) || clearedCards.has(card.id)) return;
         (card.penalty || []).forEach(rule => {
             if (rule.type === 'blanks' && rule.of) {
+                // === Check if this blanking penalty is suppressed via clearedTargets ===
+                // e.g. Rangers' clearsTarget: 'army' suppresses Great Flood's blanks: ['army']
+                if (clearedTargets) {
+                    const targets = [];
+                    if (rule.of.suits) targets.push(...rule.of.suits);
+                    else if (rule.of.suit) targets.push(rule.of.suit);
+                    const globalSet = clearedTargets.get('*') || new Set();
+                    const scopedSet = clearedTargets.get(card.suit) || new Set();
+                    if (targets.some(t => globalSet.has(t) || scopedSet.has(t))) return;
+                }
+                // === End clearedTargets check ===
                 if (rule.mode === 'allExcept') {
                     cards.forEach(candidate => {
                         const matchesSuit = rule.of.suits && rule.of.suits.includes(candidate.suit);
@@ -344,7 +355,7 @@ function scoreCards(cards) {
 
     // ===== Phase 2-3: Compute blanked cards & active hand =====
     // Skip blanking penalties from cards whose suit is cleared (e.g. Protection Rune)
-    const { blanked, zeroedPoints, activeHand } = computeBlankedAndActive(cards, clearedSuits, clearedCards);
+    const { blanked, zeroedPoints, activeHand } = computeBlankedAndActive(cards, clearedSuits, clearedCards, clearedTargets);
 
     // ===== Phase 4: Recompute clears from active cards only =====
     // If a card with a clears effect was blanked, its clears should not apply.
@@ -417,7 +428,7 @@ function scoreCards(cards) {
                     // Re-evaluate blanking with this candidate's penalties suppressed:
                     // its blanking effects no longer apply, so previously blanked cards revive.
                     const testCleared = new Set([...activeClearedCards, candidate.id]);
-                    const { blanked: b2, zeroedPoints: z2, activeHand: ah2 } = computeBlankedAndActive(cards, clearedSuits, testCleared);
+                    const { blanked: b2, zeroedPoints: z2, activeHand: ah2 } = computeBlankedAndActive(cards, clearedSuits, testCleared, clearedTargets);
                     const ac2 = recomputeClears(ah2);
                     const pts2 = {};
                     ah2.forEach(c => { pts2[c.id] = z2.has(c.id) ? 0 : (c.points || 0); });
@@ -442,7 +453,7 @@ function scoreCards(cards) {
     let finalZeroed = zeroedPoints;
     let finalResult;
     if (Object.keys(clearsBestResults).length > 0) {
-        const fb = computeBlankedAndActive(cards, clearedSuits, activeClearedCards);
+        const fb = computeBlankedAndActive(cards, clearedSuits, activeClearedCards, clearedTargets);
         finalBlanked = fb.blanked;
         finalZeroed = fb.zeroedPoints;
         const ac = recomputeClears(fb.activeHand);
